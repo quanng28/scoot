@@ -1,0 +1,27 @@
+README.md
+  s_51ea0a209dd9a8::t_34ddd2002977f9 85-86
+tasks/prd-post-stroke-seated-reach-review.md
+  s_51ea0a209dd9a8::t_5ae9b34dc5bc85 3-5
+tasks/seated-exercise-library.md
+  s_51ea0a209dd9a8::t_e7a13cb36e1d85 3-4,9
+tasks/tasks-post-stroke-seated-reach-review.md
+  s_51ea0a209dd9a8::t_b8d99ed653c273 3-5,27
+tasks/technology-decisions.md
+  s_51ea0a209dd9a8::t_b6113d341d414f 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0acfd2acb274eb70f0741faacf64648816a856e2",
+  "prompts": {},
+  "sessions": {
+    "s_51ea0a209dd9a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17660-090b-71f2-9eed-fb82103d07ae",
+        "model": "unknown"
+      },
+      "human_author": "Quan Nguyen <quannguyenminh27082007@gmail.com>"
+    }
+  }
+}
