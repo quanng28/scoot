@@ -1,8 +1,16 @@
 # SCOOT
 
-**A browser-based seated exercise prototype that turns camera landmarks into explainable movement measurements and video review.**
+**Helping stroke survivors and clinicians review seated exercises with a phone camera, joint measurements, and explainable AI summaries.**
 
-SCOOT explores how a phone can support observation of seated rehabilitation exercises. It combines on-device pose tracking, deterministic geometry, repetition analysis, and optional Gemini explanations. Measurements come from local calculations; AI explains the resulting facts.
+## The problem
+
+For stroke survivors practicing clinician-assigned seated exercises, a repetition count alone leaves important questions unanswered: How far did the arm move? Did the torso lean forward? How long did the reach take? A video can capture the movement, but finding and comparing those details takes careful review.
+
+## How SCOOT helps
+
+SCOOT is an experimental prototype for recording a short seated exercise and reviewing what happened alongside the video. Stroke survivors can see their tracked movement, while a supervising clinician can inspect joint angles, displacement, timing, and the exact moments that need a closer look.
+
+The phone calculates movement measurements locally. Optional Gemini summaries explain the recorded facts, while visible tracking limits show where evidence is missing. The goal is to support conversations about assigned exercises; clinical interpretation stays with the treating team.
 
 ## Demo
 
@@ -10,7 +18,7 @@ SCOOT explores how a phone can support observation of seated rehabilitation exer
 
 Live recording with a tracking overlay. This quick-recording view has calibrated exercise measurements off; pace monitoring runs separately. A demo video will replace this screenshot.
 
-## How it works
+## From seated practice to clinician review
 
 1. **Choose a seated exercise:** forward reach, elbow bend, arm raise, knee extension, single-leg lift, or ankle pumps.
 2. **Open the camera:** see body and hand landmarks before recording. Complete exercise-specific calibration for full measurements.
@@ -19,7 +27,7 @@ Live recording with a tracking overlay. This quick-recording view has calibrated
 
 ## The math behind the joints
 
-The core is a measurement pipeline:
+To make exercise review explainable, each reported measurement follows a defined pipeline:
 
 **Landmarks → intrinsic-frame pixels → quality checks → fixed calibration → geometry → repetition states → validated metrics → review criteria.**
 
@@ -61,9 +69,9 @@ A separate calibration-free pace monitor estimates angular and limb-normalized l
 
 See the [measurement guide](tasks/seated-reach-measurement-guide.md) for the full geometry, calibration, quality gates, and repetition contract. The [exercise library](tasks/seated-exercise-library.md) defines each exercise; these design documents include historical requirements that may differ from the current app.
 
-## Gemini and data boundaries
+## Explaining results and keeping video and clinical notes local
 
-A local report appears without Gemini. When enabled and configured, Gemini receives allowlisted finalized facts to produce a structured explanation. Quick-recording reports contain a headline, range of motion, speed/control, event-linked alerts, tracking quality, and clinician review points. Responses are validated on the server and in the browser; rejected output leaves the local report available.
+Stroke survivors and their supervising clinician can review the local report without Gemini. When enabled and configured, Gemini receives allowlisted finalized facts to produce a structured explanation. Quick-recording reports contain a headline, range of motion, speed/control, event-linked alerts, tracking quality, and clinician review points. Responses are validated on the server and in the browser; rejected output leaves the local report available.
 
 Video and raw landmarks stay on-device. Real clinical notes stay local. Gemini TTS receives approved cue identifiers through a server adapter; captions and browser speech provide fallback paths. API keys remain server-side.
 
@@ -86,4 +94,4 @@ See the [documentation index](docs/README.md) for architecture, measurement cont
 
 ## Current limits
 
-Experimental prototype, not clinically validated. Camera view, occlusion, and tracking quality limit the measurements; a camera cannot detect pain. Physical-device audio and camera behavior need further verification, particularly spoken playback and close-view ankle tracking. Browser storage can be cleared or evicted. Public video sharing and cross-session comparisons are not implemented.
+Designed around seated exercise review for stroke survivors. This experimental prototype is not clinically validated and does not replace individualized rehabilitation guidance. Camera view, occlusion, and tracking quality limit the measurements; a camera cannot detect pain. Physical-device audio and camera behavior need further verification, particularly spoken playback and close-view ankle tracking. Browser storage can be cleared or evicted. Public video sharing and cross-session comparisons are not implemented.
