@@ -2,7 +2,7 @@
 
 *Stroke Coaching, Observation, and Ongoing Training*
 
-**Helping stroke survivors and clinicians review seated exercises through [kinematic analysis](https://github.com/quanng28/scoot#the-math-behind-the-joints) that grounds AI summaries in recorded movement.**
+**SCOOT turns a phone camera into a tool for reviewing seated rehabilitation exercises with stroke survivors and clinicians. Its [kinematic analysis](https://github.com/quanng28/scoot#the-math-behind-the-joints) measures joint angles, movement speed, and timing to ground AI summaries in measured evidence, with validation that rejects unsupported claims.**
 
 ## The problem
 
