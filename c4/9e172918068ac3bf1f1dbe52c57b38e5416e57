@@ -1,0 +1,19 @@
+README.md
+  s_51ea0a209dd9a8::t_860df14e7ff516 40-42,44-48,52-58,60,64-70,76-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c49e172918068ac3bf1f1dbe52c57b38e5416e57",
+  "prompts": {},
+  "sessions": {
+    "s_51ea0a209dd9a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a17660-090b-71f2-9eed-fb82103d07ae",
+        "model": "unknown"
+      },
+      "human_author": "Quan Nguyen <quannguyenminh27082007@gmail.com>"
+    }
+  }
+}
