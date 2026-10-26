@@ -6,7 +6,11 @@
 
 ## The problem
 
-For stroke survivors practicing clinician-assigned seated exercises, a repetition count alone leaves important questions unanswered: How far did the arm move? Did the torso lean forward? How long did the reach take? A video can capture the movement, but finding and comparing those details takes careful review.
+In the United States, a stroke occurs approximately **every 40 seconds**, and **more than 795,000 people** experience one each year, according to the [CDC](https://www.cdc.gov/stroke/data-research/facts-stats/).
+
+Supporting practice beyond the clinic is a challenge. A [2020 study of 92 community-dwelling stroke survivors in India](https://doi.org/10.1002/pri.1827) found that only **28%** completed more than **70% of their prescribed home-exercise dosage**. This was one study, not a universal adherence rate. A [2020 Cochrane review of 22 trials involving 1,937 participants](https://www.cochrane.org/evidence/CD010255_telerehabilitation-services-stroke) found no clear difference in daily-living outcomes between remote and in-person rehabilitation, but the evidence was limited; it does not establish SCOOT's effectiveness.
+
+**Exercise review needs more than a repetition count.** How far did the arm move? Did the torso lean forward? How fast was the movement? A video records what happened; SCOOT adds measured angles, timing, and replay timestamps so stroke survivors and clinicians have specific evidence to review together.
 
 ## How SCOOT helps
 
