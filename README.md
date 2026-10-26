@@ -2,7 +2,7 @@
 
 *Stroke Coaching, Observation, and Ongoing Training*
 
-**Helping stroke survivors and clinicians review seated exercises through joint measurements that ground AI summaries in recorded movement.**
+**Helping stroke survivors and clinicians review seated exercises through [kinematic analysis](https://github.com/quanng28/scoot#the-math-behind-the-joints) that grounds AI summaries in recorded movement.**
 
 ## The problem
 
