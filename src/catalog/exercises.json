@@ -1,0 +1,1323 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceReferences": [
+    {
+      "id": "exercise_library",
+      "path": "tasks/seated-exercise-library.md",
+      "revision": "2026-10-24"
+    },
+    {
+      "id": "prd",
+      "path": "tasks/prd-post-stroke-seated-reach-review.md",
+      "revision": "2026-10-24"
+    },
+    {
+      "id": "technology_decisions",
+      "path": "tasks/technology-decisions.md",
+      "revision": "2026-10-24"
+    },
+    {
+      "id": "reach_guide",
+      "path": "tasks/seated-reach-measurement-guide.md",
+      "revision": "2026-10-24"
+    }
+  ],
+  "catalogConventions": {
+    "metricIdScope": "catalog_local",
+    "sharedContractMapping": "pending_integration",
+    "landmarkScope": "anatomical_roles_not_sdk_indices",
+    "coordinateConvention": "Intrinsic-frame pixels after normalized x/y conversion; undo preview transforms without swapping anatomical sides.",
+    "measurementDefinitionsImplemented": false
+  },
+  "exercises": [
+    {
+      "id": "seated_forward_reach",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated forward reach",
+      "description": "Assigned-arm forward reach toward a fixed image target and return to rest.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Record seated support and fixed target placement."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "side"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "shoulder",
+          "anatomicalSide": "selected_side",
+          "purpose": "Upper-limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "elbow",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "wrist",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "hip",
+          "anatomicalSide": "selected_side",
+          "purpose": "Limb geometry and/or baseline-relative torso proxy."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Record seated support and fixed target placement.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "shoulder",
+          "elbow",
+          "wrist",
+          "hip"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture stable resting shoulder/elbow/wrist/hip baseline.",
+          "Select fixed nonzero reference C1,C2 and target T; keep L, W0, T and torso baseline fixed.",
+          "Reject overlapping rest/target regions, insufficient reference or ambiguous forward direction."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "fixed_target",
+          "assigned_reach_range",
+          "review_criteria"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "peak_elbow_angle",
+          "label": "Peak projected elbow angle",
+          "unit": "degrees",
+          "definition": "Maximum accepted angle(S,E,W) in the outward interval; straight projected arm approaches 180 degrees.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Not a validated 3D or anatomical joint angle."
+          ],
+          "sourceReferenceIds": [
+            "reach_guide"
+          ]
+        },
+        {
+          "id": "peak_forward_torso_inclination_change",
+          "label": "Peak forward torso inclination change (2D proxy)",
+          "unit": "degrees",
+          "definition": "Peak max(0, signed shoulder–hip inclination change from rest); forward sign follows calibrated rest-to-target direction; retain signed samples.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Image vertical is not gravity or spinal alignment."
+          ],
+          "sourceReferenceIds": [
+            "reach_guide"
+          ]
+        },
+        {
+          "id": "peak_forward_wrist_displacement",
+          "label": "Peak normalized forward wrist displacement",
+          "unit": "reference_lengths",
+          "definition": "Peak wrist displacement projected onto fixed rest-to-target direction, divided by fixed reference L.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Not total path length, vertical elevation or physical distance."
+          ],
+          "sourceReferenceIds": [
+            "reach_guide"
+          ]
+        },
+        {
+          "id": "reach_duration",
+          "label": "Reach duration",
+          "unit": "seconds",
+          "definition": "First accepted target-region entry time minus accepted onset time, divided by 1000; retain first timestamps in confirmed dwell.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "Target-region entry does not establish physical contact."
+          ],
+          "sourceReferenceIds": [
+            "reach_guide"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "OUTWARD",
+        "TARGET",
+        "RETURN",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "obscured_arm_or_hip",
+        "critical_peak_gap",
+        "missing_target_or_return",
+        "invalid_calibration"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "Reach can resemble arm raise or elbow straightening; one still frame cannot establish its label."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions",
+        "reach_guide"
+      ]
+    },
+    {
+      "id": "seated_elbow_flexion_extension",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated elbow bend and straighten",
+      "description": "Bend the selected arm from a comparatively straight assigned resting position, then return.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Clinician selects permitted upper-arm and support arrangement."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "side"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "shoulder",
+          "anatomicalSide": "selected_side",
+          "purpose": "Upper-limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "elbow",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "wrist",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "hip",
+          "anatomicalSide": "selected_side",
+          "purpose": "Limb geometry and/or baseline-relative torso proxy."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Clinician selects permitted upper-arm and support arrangement.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "shoulder",
+          "elbow",
+          "wrist",
+          "hip"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture stable S0,E0,W0,H0 at a comparatively straight rest.",
+          "Clinician defines bend endpoint and return instruction.",
+          "Approved versioned engineering settings define distinct endpoint/return recognition bands and engineering dwell.",
+          "Angular metrics need no distance scale; any displayed displacement requires fixed L.",
+          "Snapshot clinician-confirmed screen-forward direction for torso change; reject ambiguity."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "resting_position",
+          "bend_endpoint",
+          "upper_arm_support",
+          "return_instruction",
+          "screen_forward_direction"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "minimum_elbow_angle",
+          "label": "Minimum projected elbow angle",
+          "unit": "degrees",
+          "definition": "Minimum angle(S,E,W) from onset through first bend endpoint.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "projected_bend_excursion",
+          "label": "Projected bend excursion",
+          "unit": "degrees",
+          "definition": "Resting elbow angle minus minimum accepted elbow angle.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Not total available clinical ROM; do not infer weakness from limited bend."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "peak_forward_torso_inclination_change",
+          "label": "Peak forward torso inclination change (2D proxy)",
+          "unit": "degrees",
+          "definition": "Peak positive baseline-relative signed shoulder–hip inclination change; retain signed samples. For no-target tasks, snapshot clinician-confirmed screen-forward direction.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Image vertical is not gravity or spinal alignment; torso motion is not automatically incorrect."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "bend_duration",
+          "label": "Bend duration",
+          "unit": "seconds",
+          "definition": "First accepted endpoint time minus first accepted onset time, divided by 1000; confirmation retains the first sample timestamp.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "return_duration",
+          "label": "Return duration",
+          "unit": "seconds",
+          "definition": "First accepted rest time minus confirmed return-departure event time, divided by 1000; use exercise-specific sustained return guards.",
+          "window": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "BENDING",
+        "BEND_ENDPOINT",
+        "STRAIGHTENING",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "hidden_wrist_or_elbow",
+        "changing_support",
+        "unobservable_endpoint_or_return",
+        "degenerate_arm_vectors"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "Reverse-start exercise requires a separately specified variant.",
+        "Hip supports the torso proxy; it cannot substitute for elbow evidence.",
+        "Shoulder movement can make reach/raise ambiguous; uncertain recognition remains unknown."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions"
+      ]
+    },
+    {
+      "id": "seated_forward_arm_raise",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated forward arm raise",
+      "description": "Raise the assigned arm toward a configured endpoint, then return to baseline.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Clinician selects permitted bend and support; do not assume a straight elbow."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "side"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "shoulder",
+          "anatomicalSide": "selected_side",
+          "purpose": "Upper-limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "elbow",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "wrist",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "hip",
+          "anatomicalSide": "selected_side",
+          "purpose": "Limb geometry and/or baseline-relative torso proxy."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Clinician selects permitted bend and support; do not assume a straight elbow.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "shoulder",
+          "elbow",
+          "wrist",
+          "hip"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture resting arm baseline and clinician-defined endpoint.",
+          "Use fixed image reference L for wrist elevation.",
+          "Snapshot endpoint driver as upper-arm angle or wrist elevation before capture; never switch mid-attempt.",
+          "Angle uses downward trunk segment, not gravity; snapshot clinician-confirmed screen-forward direction for torso change."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "resting_arm_position",
+          "raised_endpoint",
+          "permitted_bend",
+          "endpoint_driver",
+          "screen_forward_direction"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "peak_upper_arm_to_trunk_angle",
+          "label": "Peak projected upper-arm-to-trunk angle",
+          "unit": "degrees",
+          "definition": "Peak angle(E,S,H); arm alongside torso approaches zero degrees.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "peak_wrist_elevation",
+          "label": "Peak normalized wrist elevation",
+          "unit": "reference_lengths",
+          "definition": "Peak (resting wrist y minus current wrist y) divided by fixed L; upward positive.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Separate from upper-arm angle; image-plane displacement only."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "peak_forward_torso_inclination_change",
+          "label": "Peak forward torso inclination change (2D proxy)",
+          "unit": "degrees",
+          "definition": "Peak positive baseline-relative signed shoulder–hip inclination change; retain signed samples. For no-target tasks, snapshot clinician-confirmed screen-forward direction.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Image vertical is not gravity or spinal alignment; torso motion is not automatically incorrect."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "raise_duration",
+          "label": "Raise duration",
+          "unit": "seconds",
+          "definition": "First accepted endpoint time minus first accepted onset time, divided by 1000; confirmation retains the first sample timestamp.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "return_duration",
+          "label": "Return duration",
+          "unit": "seconds",
+          "definition": "First accepted rest time minus confirmed return-departure event time, divided by 1000; use exercise-specific sustained return guards.",
+          "window": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "RAISING",
+        "RAISE_ENDPOINT",
+        "LOWERING",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "overlapping_baseline_endpoint",
+        "hidden_landmarks",
+        "supervisor_reported_out_of_plane_movement",
+        "unreliable_angle_or_peak",
+        "missing_return",
+        "missing_endpoint_driver_evidence"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "Forward reach shares wrist elevation; ambiguous recognition remains unknown."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions"
+      ],
+      "endpointDriver": {
+        "selectionRequiredBeforeCapture": true,
+        "allowedMetricIds": [
+          "peak_upper_arm_to_trunk_angle",
+          "peak_wrist_elevation"
+        ],
+        "immutableDuringAttempt": true
+      }
+    },
+    {
+      "id": "seated_knee_extension",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated knee extension",
+      "description": "Extend the selected knee toward its assigned endpoint, then return to the starting position.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Record foot/limb support; chair and support must not obscure knee or ankle."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "side"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "hip",
+          "anatomicalSide": "selected_side",
+          "purpose": "Limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "knee",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "ankle",
+          "anatomicalSide": "selected_side",
+          "purpose": "Observed assigned-leg geometry or identity."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Record foot/limb support; chair and support must not obscure knee or ankle.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "hip",
+          "knee",
+          "ankle"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture resting leg baseline; angular metrics need no scale.",
+          "Clinician selects starting knee position, extension endpoint, foot/limb support and return instruction.",
+          "Keep configured onset, endpoint, return bands and engineering dwell distinct."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "starting_knee_position",
+          "extension_endpoint",
+          "foot_limb_support",
+          "return_instruction"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "peak_knee_angle",
+          "label": "Peak projected knee angle",
+          "unit": "degrees",
+          "definition": "Maximum accepted angle(H,K,A) from onset through first extension endpoint.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "projected_extension_excursion",
+          "label": "Projected extension excursion",
+          "unit": "degrees",
+          "definition": "Maximum accepted knee angle minus resting knee angle.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Projected excursion is not validated clinical ROM or strength."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "extension_duration",
+          "label": "Extension duration",
+          "unit": "seconds",
+          "definition": "First accepted endpoint time minus first accepted onset time, divided by 1000; confirmation retains the first sample timestamp.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "return_duration",
+          "label": "Return duration",
+          "unit": "seconds",
+          "definition": "First accepted rest time minus confirmed return-departure event time, divided by 1000; use exercise-specific sustained return guards.",
+          "window": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "EXTENDING",
+        "EXTENSION_ENDPOINT",
+        "RETURN",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "ankle_or_chair_occlusion",
+        "nearly_overlapping_projected_segments",
+        "endpoint_gap",
+        "missing_return"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "No force, muscle strength, knee-valgus or fall-risk interpretation.",
+        "Leg lift can mimic extension; temporal evidence may still require rejection."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions"
+      ]
+    },
+    {
+      "id": "seated_single_leg_lift",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated single-leg lift",
+      "description": "Lift one assigned knee toward its configured elevation endpoint, then lower to rest.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Record stable seating/support; capture one assigned leg at a time."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "side",
+          "slightly_oblique"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "shoulder",
+          "anatomicalSide": "selected_side",
+          "purpose": "Upper-limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "hip",
+          "anatomicalSide": "selected_side",
+          "purpose": "Limb geometry and/or baseline-relative torso proxy."
+        },
+        {
+          "role": "knee",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "ankle",
+          "anatomicalSide": "selected_side",
+          "purpose": "Observed assigned-leg geometry or identity."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Record stable seating/support; capture one assigned leg at a time.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "shoulder",
+          "hip",
+          "knee",
+          "ankle"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture stable S0,H0,K0,A0 and select fixed image reference L.",
+          "Snapshot approved side or slightly oblique view; change requires new setup.",
+          "Clinician selects leg and lift endpoint; snapshot screen-forward direction for torso change."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "lift_endpoint",
+          "fixed_reference",
+          "approved_view",
+          "screen_forward_direction"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "peak_knee_elevation",
+          "label": "Peak normalized knee elevation",
+          "unit": "reference_lengths",
+          "definition": "Peak (resting knee y minus current knee y) divided by fixed L; upward positive.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "peak_forward_torso_inclination_change",
+          "label": "Peak forward torso inclination change (2D proxy)",
+          "unit": "degrees",
+          "definition": "Peak positive baseline-relative signed shoulder–hip inclination change; retain signed samples. For no-target tasks, snapshot clinician-confirmed screen-forward direction.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Image vertical is not gravity or spinal alignment; torso motion is not automatically incorrect."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "lift_duration",
+          "label": "Lift duration",
+          "unit": "seconds",
+          "definition": "First accepted endpoint time minus first accepted onset time, divided by 1000; confirmation retains the first sample timestamp.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "return_duration",
+          "label": "Return duration",
+          "unit": "seconds",
+          "definition": "First accepted rest time minus confirmed return-departure event time, divided by 1000; use exercise-specific sustained return guards.",
+          "window": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "LIFTING",
+        "LIFT_ENDPOINT",
+        "LOWERING",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "obscured_hip_knee_or_ankle",
+        "moving_camera_or_reference",
+        "endpoint_not_observed",
+        "support_change",
+        "incomplete_return"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "Knee-elevation task; not walking. Alternating-leg automatic analysis is deferred.",
+        "Hip/knee angles are diagnostic only until separately specified and tested; absent from required report metrics.",
+        "Ankle visibility helps establish the observed leg, not foot contact or balance safety."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions"
+      ]
+    },
+    {
+      "id": "seated_ankle_pumps",
+      "definitionVersion": "1.0.0",
+      "displayName": "Seated ankle pumps",
+      "description": "Move the supported selected foot from prescribed rest toward its assigned pump endpoint and back.",
+      "supportedModeIds": [
+        "rehabilitation",
+        "wellness"
+      ],
+      "posture": {
+        "position": "seated",
+        "requirements": [
+          "Supervisor confirms stable seating and clinician-permitted support.",
+          "Clinician specifies supported lower-leg/foot arrangement; record support and footwear."
+        ]
+      },
+      "camera": {
+        "allowedViews": [
+          "close_side"
+        ],
+        "selectionRecordedBeforeCapture": true,
+        "fixedDuringTask": true,
+        "requirements": [
+          "Keep assigned anatomical side and every required landmark observable.",
+          "Changing approved view or camera requires new setup."
+        ]
+      },
+      "requiredLandmarks": [
+        {
+          "role": "knee",
+          "anatomicalSide": "selected_side",
+          "purpose": "Exercise-specific limb geometry."
+        },
+        {
+          "role": "ankle",
+          "anatomicalSide": "selected_side",
+          "purpose": "Observed assigned-leg geometry or identity."
+        },
+        {
+          "role": "heel",
+          "anatomicalSide": "selected_side",
+          "purpose": "Foot visibility and shape checks; not a substitute angle vertex."
+        },
+        {
+          "role": "foot_index",
+          "anatomicalSide": "selected_side",
+          "purpose": "Foot-segment endpoint for the oriented foot proxy."
+        }
+      ],
+      "sideSelection": {
+        "required": true,
+        "allowed": [
+          "left",
+          "right"
+        ],
+        "automaticBilateralComparison": false,
+        "missingSidePolicy": "reject_without_opposite_side_substitution"
+      },
+      "supportRequirements": {
+        "recordDescription": true,
+        "clinicianSelected": true,
+        "instruction": "Clinician specifies supported lower-leg/foot arrangement; record support and footwear.",
+        "changeRequiresNewSetup": true
+      },
+      "calibrationRequirements": {
+        "baselineLandmarks": [
+          "knee",
+          "ankle",
+          "heel",
+          "foot_index"
+        ],
+        "fixedSessionCalibration": true,
+        "requirements": [
+          "Capture stable resting foot baseline with resolvable shank and foot in a close side view.",
+          "Record fixed screen-forward sign in unmirrored analysis coordinates and pump-direction sign (+1 or -1).",
+          "Verify prescribed outward-positive direction against a labeled small setup motion; reject ambiguity.",
+          "Fix and test sign/angle wrapping and nonoverlapping rest/endpoint bands at setup.",
+          "Reject a gap or angular step that makes unwrapping ambiguous."
+        ],
+        "assignmentFields": [
+          "side",
+          "seating_support",
+          "lower_leg_foot_support",
+          "footwear",
+          "resting_foot_position",
+          "pump_endpoint",
+          "return_instruction",
+          "screen_forward_sign",
+          "pump_direction_sign"
+        ],
+        "numericDefaults": null
+      },
+      "metrics": [
+        {
+          "id": "oriented_shank_to_foot_angle",
+          "label": "Oriented projected shank-to-foot angle",
+          "unit": "degrees",
+          "definition": "Signed atan2 cross/dot angle between knee-minus-ankle and foot-index-minus-ankle; use oriented angle rather than unsigned acos.",
+          "window": "accepted_outward_samples",
+          "limitations": [
+            "Foot-segment proxy; not validated anatomical ankle angle or clinical dorsiflexion."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "signed_shank_to_foot_change",
+          "label": "Baseline-relative signed foot-angle change",
+          "unit": "degrees",
+          "definition": "wrapTo180(screenForwardSign * (oriented angle minus baseline angle)); retain signed samples for inspection.",
+          "window": "accepted_outward_samples",
+          "limitations": [
+            "Screen-forward sign is fixed at setup; reject ambiguous unwrap intervals."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "peak_prescribed_direction_excursion",
+          "label": "Peak prescribed-direction foot excursion",
+          "unit": "degrees",
+          "definition": "Peak positive pumpDirectionSign times signed baseline-relative foot-angle change in the outward interval.",
+          "window": "accepted_onset_to_first_endpoint_inclusive",
+          "limitations": [
+            "Direction must be calibrated; opposite-direction movement cannot satisfy prescribed endpoint."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "outward_duration",
+          "label": "Outward duration",
+          "unit": "seconds",
+          "definition": "First accepted endpoint time minus first accepted onset time, divided by 1000; confirmation retains the first sample timestamp.",
+          "window": "accepted_onset_to_first_endpoint_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        },
+        {
+          "id": "return_duration",
+          "label": "Return duration",
+          "unit": "seconds",
+          "definition": "First accepted rest time minus confirmed return-departure event time, divided by 1000; use exercise-specific sustained return guards.",
+          "window": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+          "limitations": [
+            "2D projected estimate; valid phase and tracking evidence required."
+          ],
+          "sourceReferenceIds": [
+            "exercise_library"
+          ]
+        }
+      ],
+      "measurementWindows": {
+        "peak": "accepted_onset_to_first_endpoint_inclusive",
+        "outwardDuration": "accepted_onset_to_first_endpoint_excluding_hold",
+        "returnDuration": "confirmed_return_departure_from_endpoint_to_rest_excluding_hold",
+        "sourceReferenceIds": [
+          "exercise_library",
+          "reach_guide"
+        ]
+      },
+      "stateSequence": [
+        "REST",
+        "PUMP_OUT",
+        "PUMP_ENDPOINT",
+        "RETURN",
+        "REST"
+      ],
+      "exclusionReasons": [
+        "hidden_foot",
+        "short_projected_segments",
+        "footwear_or_occlusion",
+        "sub_resolution_movement",
+        "unstable_foot_index_or_heel",
+        "ambiguous_direction_or_unwrapping",
+        "missing_return"
+      ],
+      "limitations": [
+        "Projected engineering measurements; not validated clinical ROM, strength or muscle activation.",
+        "Missing landmarks, degenerate geometry, invalid calibration, unobserved endpoints or untrusted peaks produce null with reasons.",
+        "No centimeters without a separately validated scale; no universal dose, range target or progression.",
+        "Torso motion is contextual; a flag is a request for review, not a safety judgment.",
+        "Heel is required for visibility/shape checks; it is not an angle vertex.",
+        "Whole-body views may be inadequate for very small foot movement.",
+        "No alternating endpoint convention, heel-lift substitution or synthetic counts.",
+        "Analyzer remains unavailable until early close-view physical iPhone feasibility evidence resolves tracking risks."
+      ],
+      "clinicalReviewStatus": "pending",
+      "technicalStatus": "pending",
+      "availability": {
+        "status": "blocked",
+        "requiredEvidenceKinds": [
+          "definition_review",
+          "quan_p_adapter",
+          "engineering_settings",
+          "exercise_fixtures",
+          "camera_calibration_rejection",
+          "replay_timing",
+          "physical_iphone_safari",
+          "ankle_close_view_feasibility"
+        ],
+        "blockers": [
+          "clinical_review_pending",
+          "technical_validation_pending",
+          "missing_definition_review",
+          "missing_quan_p_adapter",
+          "missing_engineering_settings",
+          "missing_exercise_fixtures",
+          "missing_camera_calibration_rejection",
+          "missing_replay_timing",
+          "missing_physical_iphone_safari",
+          "missing_ankle_close_view_feasibility"
+        ]
+      },
+      "validationEvidence": [],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd",
+        "technology_decisions"
+      ],
+      "feasibilityGate": {
+        "required": true,
+        "evidenceKind": "ankle_close_view_feasibility",
+        "requirements": [
+          "Physical iPhone close-side-view trial demonstrates usable foot/shank/heel/foot-index tracking.",
+          "Document small-movement resolution, footwear/occlusion, jitter and direction/wrapping behavior."
+        ],
+        "syntheticGeometrySufficient": false
+      }
+    }
+  ]
+}

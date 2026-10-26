@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceReferences": [
+    {
+      "id": "exercise_library",
+      "path": "tasks/seated-exercise-library.md",
+      "revision": "2026-10-24"
+    },
+    {
+      "id": "prd",
+      "path": "tasks/prd-post-stroke-seated-reach-review.md",
+      "revision": "2026-10-24"
+    }
+  ],
+  "modes": [
+    {
+      "id": "rehabilitation",
+      "displayName": "Rehabilitation",
+      "purpose": "Supervised clinician-assigned seated activity after stroke.",
+      "explicitSelectionRequired": true,
+      "supervisionRequired": true,
+      "clinicianSuitabilityAttestation": {
+        "required": true,
+        "requiredFields": [
+          "date",
+          "context",
+          "pseudonymous_supervisor_label"
+        ],
+        "recordType": "reported_supervisor_attestation",
+        "checkboxVerifiesClinicianIdentity": false,
+        "checkboxVerifiesMedicalClearance": false,
+        "recentStrokeSuitabilityAuthority": "treating_team"
+      },
+      "assignment": {
+        "modeSpecificGoalAndSettingsRequired": true,
+        "snapshotExerciseDefinitionAndSettings": true,
+        "reusePrescriptionAcrossModesAutomatically": false,
+        "requiredContextFields": [
+          "side",
+          "seating_support",
+          "clinician_selected_range_or_goal",
+          "assigned_repetitions_rest_if_any",
+          "review_criteria"
+        ],
+        "oneActiveExercise": true,
+        "taskChangeEndsTaskAndRequiresSetup": true
+      },
+      "automation": {
+        "prescriptionAllowed": false,
+        "progressionAllowed": false,
+        "modeSwitchAllowed": false,
+        "recognitionMaySwitchMode": false,
+        "efficacyClaimsAllowed": false
+      },
+      "manualActivityLogging": {
+        "allowed": true,
+        "explicitLabelRequired": true,
+        "recordType": "manual_activity_log",
+        "countsAsMeasuredRepetitions": false,
+        "includedInMeasuredAttemptCounts": false,
+        "includedInMeasuredDenominators": false,
+        "substitutesForUnavailableAnalyzer": false
+      },
+      "limitations": [
+        "Attestation records reported suitability; it does not establish medical readiness.",
+        "Treating-team suitability remains necessary for recent stroke; definition review never replaces it.",
+        "No recovery, prevention, individual risk or treatment-efficacy claim."
+      ],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd"
+      ]
+    },
+    {
+      "id": "wellness",
+      "displayName": "Wellness",
+      "purpose": "Separate supervised suitable seated activities, activity logging and vascular-health education.",
+      "explicitSelectionRequired": true,
+      "supervisionRequired": true,
+      "clinicianSuitabilityAttestation": {
+        "required": true,
+        "requiredFields": [
+          "date",
+          "context",
+          "pseudonymous_supervisor_label"
+        ],
+        "recordType": "reported_supervisor_attestation",
+        "checkboxVerifiesClinicianIdentity": false,
+        "checkboxVerifiesMedicalClearance": false,
+        "recentStrokeSuitabilityAuthority": "treating_team"
+      },
+      "assignment": {
+        "modeSpecificGoalAndSettingsRequired": true,
+        "snapshotExerciseDefinitionAndSettings": true,
+        "reusePrescriptionAcrossModesAutomatically": false,
+        "requiredContextFields": [
+          "side",
+          "seating_support",
+          "clinician_selected_range_or_goal",
+          "assigned_repetitions_rest_if_any",
+          "review_criteria"
+        ],
+        "oneActiveExercise": true,
+        "taskChangeEndsTaskAndRequiresSetup": true
+      },
+      "automation": {
+        "prescriptionAllowed": false,
+        "progressionAllowed": false,
+        "modeSwitchAllowed": false,
+        "recognitionMaySwitchMode": false,
+        "efficacyClaimsAllowed": false
+      },
+      "manualActivityLogging": {
+        "allowed": true,
+        "explicitLabelRequired": true,
+        "recordType": "manual_activity_log",
+        "countsAsMeasuredRepetitions": false,
+        "includedInMeasuredAttemptCounts": false,
+        "includedInMeasuredDenominators": false,
+        "substitutesForUnavailableAnalyzer": false
+      },
+      "limitations": [
+        "Attestation records reported suitability; it does not establish medical readiness.",
+        "Treating-team suitability remains necessary for recent stroke; definition review never replaces it.",
+        "No recovery, prevention, individual risk or treatment-efficacy claim."
+      ],
+      "sourceReferenceIds": [
+        "exercise_library",
+        "prd"
+      ]
+    }
+  ]
+}

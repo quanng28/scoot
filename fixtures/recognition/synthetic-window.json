@@ -1,0 +1,14 @@
+{
+  "fixtureStatus": "SYNTHETIC ONLY — DRAFT AWAITING QUAN P INTEGRATION",
+  "window": {
+    "schemaVersion": "movement-features.draft-v1",
+    "startMs": 0,
+    "endMs": 1000,
+    "samples": [
+      { "timestampMs": 0, "features": { "elbowAngleDeg": 100, "upperArmToTrunkAngleDeg": 10, "kneeAngleDeg": null, "ankleSignedChangeDeg": null, "wristForwardReferenceLengths": 0, "wristElevationReferenceLengths": 0, "kneeElevationReferenceLengths": null, "torsoInclinationChangeDeg": 0 } },
+      { "timestampMs": 500, "features": { "elbowAngleDeg": 140, "upperArmToTrunkAngleDeg": 25, "kneeAngleDeg": null, "ankleSignedChangeDeg": null, "wristForwardReferenceLengths": 0.5, "wristElevationReferenceLengths": 0.2, "kneeElevationReferenceLengths": null, "torsoInclinationChangeDeg": 3 } },
+      { "timestampMs": 1000, "features": { "elbowAngleDeg": 100, "upperArmToTrunkAngleDeg": 10, "kneeAngleDeg": null, "ankleSignedChangeDeg": null, "wristForwardReferenceLengths": 0, "wristElevationReferenceLengths": 0, "kneeElevationReferenceLengths": null, "torsoInclinationChangeDeg": 0 } }
+    ],
+    "quality": { "status": "measurable", "coverage": 1, "maxGapMs": 500 }
+  }
+}

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SCOOT</title>
+  <style>
+    :root { --bg:#0a0a0a; --card-bg:#141414; --card-hover:#1d1d1d; --card-selected:#222; --border:#303030; --text:#fff; --text-muted:#aaa; color-scheme:dark; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif; }
+    * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+    html { scroll-padding-top:94px; }
+    body { background:var(--bg); color:var(--text); min-width:320px; overflow-x:hidden; }
+    button,input,select,textarea { font:inherit; }
+    button { cursor:pointer; touch-action:manipulation; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:2px solid white; outline-offset:4px; }
+    [hidden] { display:none!important; }
+    .app-shell { width:100%; min-height:100dvh; padding-bottom:env(safe-area-inset-bottom); }
+    .app-header { position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:76px; padding:calc(16px + env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) 16px max(20px,env(safe-area-inset-left)); background:rgba(10,10,10,.97); border-bottom:1px solid #242424; }
+    .brand { font-size:1.1rem; font-weight:750; letter-spacing:-.035em; }
+    .header-actions,.small-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .header-button,.small-actions button,.session-row button,.attempt-row button,.settings-close { min-height:44px; padding:10px 14px; color:white; background:transparent; border:1px solid #414141; border-radius:10px; }
+    .header-button:hover,.small-actions button:hover { background:#222; }
+    #btn-home { padding-inline:10px; }
+    .viewport { width:min(100%,1160px); margin:0 auto; padding:0 24px 32px; }
+    .page { display:none; width:100%; }
+    .page.active { display:block; }
+    .selection-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:30px 0 24px; }
+    .selection-intro h1,#sessions-heading h1 { font-size:clamp(1.55rem,4vw,2.3rem); font-weight:650; letter-spacing:-.04em; line-height:1.1; }
+    .selection-intro p { max-width:46ch; color:var(--text-muted); font-size:.9rem; line-height:1.5; margin-top:10px; }
+    .exercise-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:16px; padding-bottom:24px; }
+    .exercise-card { display:flex; align-items:stretch; gap:0; min-width:0; background:var(--card-bg); border:1.5px solid var(--border); border-radius:18px; transition:background .16s,border-color .16s; overflow:hidden; scroll-margin-block:100px 24px; }
+    .exercise-card:hover { background:var(--card-hover); border-color:#555; }
+    .exercise-card.selected { background:var(--card-selected); border-color:white; }
+    .exercise-select { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px; text-align:left; color:white; background:transparent; border:0; border-radius:16px; }
+    .exercise-select:focus-visible { outline-offset:-5px; }
+    .card-left { display:flex; flex:1; min-width:0; flex-direction:column; gap:8px; }
+    .exercise-title { font-size:1rem; line-height:1.3; font-weight:700; }
+    .exercise-desc { color:var(--text-muted); font-size:.81rem; line-height:1.45; }
+    .radio-circle { display:flex; align-items:center; justify-content:center; width:20px; height:20px; margin-top:3px; border:2px solid #85858a; border-radius:50%; }
+    .selected .radio-circle { border-color:white; }
+    .selected .radio-circle::after { content:""; width:10px; height:10px; border-radius:50%; background:white; }
+    .card-right { display:flex; align-items:center; justify-content:center; flex:none; width:84px; height:84px; background:#080808; border:1px solid #333; border-radius:15px; }
+    .card-right svg { width:74px; height:74px; }
+    .continue-exercise { position:fixed; right:max(20px,env(safe-area-inset-right)); bottom:max(20px,env(safe-area-inset-bottom)); z-index:35; display:flex; align-items:center; gap:12px; padding:15px 22px; min-height:56px; border:1px solid #fff; border-radius:999px; background:#fff; color:#080808; font-size:.95rem; font-weight:700; box-shadow:0 4px 24px #0008; }
+    .continue-exercise svg { width:22px; height:22px; }
+    #page-1.has-selection { padding-bottom:92px; }
+    .record-control-group { display:flex; flex-direction:column; align-items:center; gap:8px; max-width:90%; }
+    .record-action-label { padding:6px 12px; border-radius:999px; background:#000d; color:white; font-size:.8rem; text-align:center; }
+    .btn-record[data-record-ready=false] { background:#272727d9; }
+    .btn-record[data-record-ready=false] .record-inner { background:#aaa; }
+    #capture-status { font-weight:600; color:#eee; }
+    .tracking-detail-panel { margin-bottom:16px; color:#aaa; font-size:.8rem; line-height:1.5; }
+    .tracking-detail-panel p { margin-top:8px; white-space:pre-line; }
+    #setup-steps { padding-left:22px; display:grid; gap:9px; line-height:1.5; }
+    #view-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    #app-status { width:min(100%,1160px); margin:0 auto; padding:14px 24px 0; color:#bbb; font-size:.85rem; line-height:1.45; white-space:pre-line; }
+    #app-status:empty { display:none; }
+    #page-2 { max-width:760px; margin:24px auto 0; padding-bottom:100px; }
+    #capture-stage { display:flex; flex-direction:column; }
+    .camera-container { position:relative; min-height:0; width:100%; aspect-ratio:3/4; flex:none; background:#000; border-radius:16px; overflow:hidden; }
+    #live-video,#overlay-canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill; }
+    #overlay-canvas { pointer-events:auto; }
+    .timer-pill { position:absolute; top:14px; left:50%; transform:translateX(-50%); padding:6px 12px; border-radius:20px; background:rgba(0,0,0,.75); font-variant-numeric:tabular-nums; z-index:4; }
+    .countdown-overlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; pointer-events:none; z-index:5; }
+    .countdown-overlay.active { display:flex; }
+    .countdown-number { font-size:6rem; font-weight:750; text-shadow:0 2px 20px #000; }
+    .record-controls { position:absolute; bottom:20px; left:0; right:0; display:flex; justify-content:center; pointer-events:none; z-index:4; }
+    .btn-record { width:70px; height:70px; padding:7px; border:4px solid white; border-radius:50%; background:rgba(0,0,0,.35); pointer-events:auto; }
+    .record-inner { width:100%; height:100%; border-radius:50%; background:#f45050; }
+    .notice { padding:12px 0; font-size:.83rem; line-height:1.5; color:#bbb; }
+    #capture-status { white-space:pre-line; }
+    #capture-status[data-problem=true] { color:#ffb7b7; }
+    .cue-caption { min-height:24px; margin:0 0 16px; color:#eee; font-size:.92rem; line-height:1.5; }
+    .integration-panel { display:grid; gap:14px; padding:20px; border:1px solid #303030; border-radius:16px; background:#111; color:#ddd; font-size:.85rem; }
+    .integration-panel h2 { font-size:1.15rem; }
+    .integration-panel p { line-height:1.5; }
+    .integration-panel label { display:grid; gap:7px; line-height:1.45; }
+    .integration-panel .choice { display:flex; align-items:flex-start; gap:10px; }
+    input,select,textarea { min-width:0; width:100%; padding:11px; color:white; background:#1a1a1a; border:1px solid #505050; border-radius:8px; font-size:1rem; }
+    input[type=checkbox] { flex:none; width:18px; height:18px; margin-top:2px; }
+    details summary { cursor:pointer; line-height:1.5; }
+    details[open] summary { margin-bottom:14px; }
+    .readiness-note { color:#bbb; white-space:pre-line; font-size:.8rem; line-height:1.5; }
+    #recording-actions { position:fixed; bottom:0; left:50%; transform:translateX(-50%); z-index:45; width:min(100%,760px); padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-radius:16px 16px 0 0; background:#111; border-color:#555; box-shadow:0 -8px 24px #0006; gap:8px; }
+    .recording-meta { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.76rem; }
+    #recording-actions .small-actions { flex-wrap:nowrap; }
+    #recording-actions button { flex:1; padding-inline:10px; }
+    #btn-discomfort { color:#ffb7b7; border-color:#966; }
+    #page-4 { max-width:900px; margin:24px auto 0; }
+    .replay-viewport { position:relative; width:100%; max-height:75dvh; aspect-ratio:4/3; background:#000; border-radius:16px; overflow:hidden; }
+    #playback-video { width:100%; height:100%; object-fit:contain; }
+    .scroll-down-btn { position:absolute; bottom:18px; right:18px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:1px solid white; border-radius:50%; background:#111d; color:white; }
+    .scroll-down-btn svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; }
+    .report-container { padding:16px 0; }
+    .report-card { padding:24px; border:1px solid #333; border-radius:18px; background:#111; overflow-wrap:anywhere; }
+    .gemini-tag { color:#aaa; text-transform:uppercase; font-size:.68rem; letter-spacing:.08em; }
+    .report-headline { margin:8px 0; font-size:1.7rem; letter-spacing:-.035em; line-height:1.15; }
+    .metrics-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:20px 0; }
+    .metric-box { padding:16px 8px; border:1px solid #333; border-radius:12px; text-align:center; }
+    .metric-value { font-size:1.8rem; font-weight:700; }
+    .metric-label { color:#aaa; font-size:.72rem; margin-top:4px; }
+    #report-details { font-size:.85rem; line-height:1.6; }
+    #report-details p { margin-bottom:10px; }
+    #metric-charts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:20px 0; }
+    .graph-section { padding:16px; border:1px solid #333; border-radius:12px; background:#090909; }
+    .graph-title { font-size:.9rem; font-weight:650; line-height:1.3; }
+    .graph-legend { font-size:.73rem; line-height:1.4; color:#aaa; margin-top:6px; }
+    .graph-canvas-container { min-height:140px; margin-top:10px; }
+    .graph-canvas-container svg { width:100%; height:auto; }
+    .graph-canvas-container p { color:#aaa; font-size:.8rem; line-height:1.4; }
+    .attempt-row,.session-row { padding:18px 0; border-top:1px solid #333; overflow-wrap:anywhere; line-height:1.5; font-size:.85rem; }
+    .attempt-row p,.session-row p { margin-bottom:8px; }
+    .attempt-row button,.session-row button { margin:4px 8px 4px 0; }
+    .metric-line { margin:5px 0; }
+    .gemini-feedback-card { display:grid; gap:12px; padding:18px; border:1px solid #333; border-radius:12px; margin:20px 0; font-size:.86rem; line-height:1.5; }
+    #save-status { margin:18px 0; font-size:.85rem; line-height:1.5; color:#bbb; }
+    .btn-return-home { width:100%; min-height:48px; padding:14px; background:white; color:#080808; border:0; border-radius:12px; margin-top:20px; font-weight:700; }
+    #sessions-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:30px 0 20px; }
+    #session-list { padding-bottom:24px; }
+    .settings-dialog { width:min(calc(100% - 32px),540px); max-height:calc(100dvh - 32px); margin:auto; padding:24px; overflow:auto; background:#111; color:white; border:1px solid #555; border-radius:18px; }
+    .settings-dialog::backdrop { background:#000b; }
+    .settings-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }
+    .settings-heading h2 { font-size:1.4rem; letter-spacing:-.03em; }
+    .settings-content { display:grid; gap:24px; }
+    .settings-content section { display:grid; gap:12px; }
+    .settings-content h3 { font-size:.95rem; }
+    .settings-content label { display:grid; gap:8px; font-size:.85rem; line-height:1.5; }
+    .settings-content .choice { display:flex; gap:10px; align-items:flex-start; }
+    .settings-content p { color:#aaa; font-size:.81rem; line-height:1.5; }
+    .settings-content details { padding-top:18px; border-top:1px solid #333; font-size:.85rem; }
+    @media (max-width:900px) { .exercise-list { grid-template-columns:1fr; } }
+    @media (max-width:700px) {
+      html { scroll-padding-top:86px; }
+      .app-header { min-height:68px; gap:8px; padding:calc(12px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left)); }
+      .brand { font-size:1rem; }
+      .header-actions { gap:6px; flex-wrap:nowrap; }
+      .header-button { padding:9px 10px; font-size:.78rem; }
+      .viewport { padding:0 max(16px,env(safe-area-inset-right)) 24px max(16px,env(safe-area-inset-left)); }
+      .selection-intro { padding:24px 0 20px; align-items:flex-start; }
+      .selection-intro h1 { font-size:1.6rem; }
+      .selection-intro p { font-size:.82rem; }
+      .exercise-list { grid-template-columns:1fr; gap:12px; }
+      .exercise-select { padding:16px; gap:12px; }
+      .exercise-title { font-size:.98rem; }
+      .exercise-desc { font-size:.78rem; }
+      .card-right { width:74px; height:80px; }
+      .card-right svg { width:68px; height:68px; }
+      .integration-panel,.report-card { padding:16px; }
+      #page-2,#page-4 { margin-top:16px; }
+      #metric-charts { grid-template-columns:1fr; }
+      .metrics-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      #recording-actions button { font-size:.76rem; min-height:48px; }
+      #sessions-heading h1 { font-size:1.5rem; }
+    }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header"><div class="brand">SCOOT</div><div class="header-actions"><button class="header-button" id="btn-home" aria-label="Back to exercises" hidden>← Back</button><button class="header-button" id="btn-sessions">Saved</button><button class="header-button" id="btn-settings" aria-haspopup="dialog">Settings</button></div><span id="view-label" aria-live="polite">Choose an exercise</span></header>
+    <p class="notice" id="app-status" role="status" aria-live="polite"></p>
+    <main class="viewport" id="viewport">
+      <section class="page active" id="page-1" aria-label="Choose an exercise">
+        <div class="selection-intro" id="selection-intro"><div><h1>Choose an exercise</h1><p>Camera and recording start only after your action.</p></div></div>
+        <div id="sessions-heading" hidden><h1>Saved sessions</h1><button class="header-button" id="btn-close-sessions">Choose an exercise</button></div>
+        <div class="exercise-list" id="exercise-list"></div>
+        <div id="session-list" hidden></div>
+
+      </section>
+      <section class="page" id="page-2" aria-label="Camera preview and guided setup">
+        <div id="capture-stage">
+          <div class="camera-container" id="shared-camera">
+            <video id="live-video" autoplay muted playsinline aria-label="Camera preview"></video><canvas id="overlay-canvas" aria-label="Camera picture: choose reference points or reach target" tabindex="-1"></canvas>
+            <div class="timer-pill" id="recording-timer" hidden>00:00</div>
+            <div class="countdown-overlay" id="countdown-overlay"><div class="countdown-number" id="countdown-digit"></div></div>
+            <div class="record-controls"><div class="record-control-group"><button class="btn-record" id="btn-start-record" aria-label="Set up recording" aria-describedby="record-action-label capture-status" disabled><div class="record-inner"></div></button><span class="record-action-label" id="record-action-label">Set up recording</span></div></div>
+          </div>
+        </div>
+        <p id="capture-status" class="notice" role="status" aria-live="polite"></p>
+        <p id="tracking-status" class="notice" tabindex="-1"></p><details class="tracking-detail-panel"><summary>Tracking and setup details</summary><p id="tracking-details"></p><p id="capture-technical-status" tabindex="-1"></p></details><p class="cue-caption" id="cue-caption" aria-live="polite">Guidance appears here during setup.</p>
+        <div class="integration-panel" id="setup-fields">
+          <h2 id="setup-title">Guided setup</h2><p id="setup-instruction"></p><ol id="setup-steps"></ol><details><summary>What is measured?</summary><p id="measurement-state"></p><p id="measurement-explanation"></p><ul id="measurement-metrics"></ul><p>These are estimates from a two-dimensional camera view, not clinical measurements. Joints must be visible; missing evidence stays unavailable.</p></details>
+          <div class="small-actions"><button id="btn-baseline">Save starting position</button><button id="btn-reset-setup">Reset calibration</button><button id="btn-retry-camera">Open camera</button></div>
+          <label>Measured anatomical side<select id="setup-side"><option value="left">Left</option><option value="right">Right</option></select></label>
+          <label>Camera<select id="setup-camera"><option value="environment">Rear camera</option><option value="user">Front camera</option></select></label>
+          <label class="choice"><input type="checkbox" id="setup-mirror" checked>Mirror preview only; anatomical side and saved recording remain unchanged</label>
+          <label>Mode<select id="setup-mode"><option value="">Choose explicitly</option><option value="rehabilitation">Rehabilitation</option><option value="wellness">Wellness</option></select></label>
+          <label>Seating and assigned limb support (including “none”)<input id="setup-support" maxlength="300"></label>
+          <label>Assigned task range or goal<input id="setup-goal" maxlength="300"></label>
+          <label id="target-description-label">Fixed target placement<input id="setup-target" maxlength="300"></label>
+          <div id="endpoint-fields"></div><details><summary>Optional configured review criteria</summary><p>Engineering review flags only. No clinical thresholds are supplied.</p><div id="criteria-fields"></div></details>
+          <label>Suitability attestation context, as reported by the supervisor<input id="setup-attestation-context" maxlength="300"></label>
+          <label class="choice"><input type="checkbox" id="setup-attested">Supervisor reports suitability for this assigned seated task today. The app does not verify clinical suitability.</label>
+          <label class="choice"><input type="checkbox" id="setup-team">I confirm this is a suitable, consenting team/judge validation test.</label>
+          <label class="choice"><input type="checkbox" id="setup-confirmed">Supervisor confirms seating, support, fixed camera framing and task alignment.</label>
+          <p id="setup-errors" class="readiness-note" tabindex="-1"></p>
+        </div>
+        <div class="integration-panel" id="recording-actions" hidden><div class="recording-meta"><p id="live-counts"></p><button class="header-button" id="btn-recording-mute">Mute audio</button></div><div class="small-actions"><button id="btn-stop-record">Stop recording</button><button id="btn-discomfort">Discomfort — stop now</button><button id="btn-setup-changed">Setup changed</button></div></div>
+      </section>
+      <section class="page" id="page-4" aria-label="Replay and factual report">
+        <div class="replay-viewport"><video id="playback-video" controls playsinline aria-label="Recorded session video"></video><button class="scroll-down-btn" id="btn-scroll-to-report" aria-label="Scroll down to report"><svg viewBox="0 0 24 24"><path d="M12 4v16m0 0l-6-6m6 6l6-6"/></svg></button></div>
+        <p class="notice" id="replay-status"></p>
+        <div id="page-5"><div class="report-container"><div class="report-card">
+          <div class="gemini-tag">Local measured session facts</div><h1 class="report-headline" id="report-exercise-name"></h1>
+          <p class="notice">Image-plane engineering estimates; not clinically validated. No video or landmarks are sent to Gemini.</p>
+          <div class="metrics-summary-grid"><div class="metric-box"><div class="metric-value" id="metric-detected">0</div><div class="metric-label">Detected</div></div><div class="metric-box"><div class="metric-value" id="metric-measurable">0</div><div class="metric-label">Measurable</div></div><div class="metric-box"><div class="metric-value" id="metric-excluded">0</div><div class="metric-label">Excluded</div></div><div class="metric-box"><div class="metric-value" id="metric-flagged">0</div><div class="metric-label">Flagged for review</div></div></div>
+          <div id="report-details"></div><div id="metric-charts"></div><div id="attempt-list"></div>
+          <div class="gemini-feedback-card"><strong>Optional experimental explanation</strong><p id="gemini-summary-text" class="gemini-feedback-text">Deterministic local report. No generated explanation requested.</p><div id="generated-observations"></div><div class="small-actions"><button id="btn-generate-report">Explain results</button><button id="btn-cancel-report">Cancel explanation</button></div></div>
+          <p id="save-status" role="status"></p><div class="small-actions"><button id="btn-save-session">Save on this device</button><button id="btn-delete-session">Delete this saved session</button><button id="btn-share" disabled>Public sharing unavailable</button></div>
+          <button class="btn-return-home" id="btn-return-home">Choose Another Exercise</button>
+        </div></div></div>
+      </section>
+    </main>
+    <button class="continue-exercise" id="btn-confirm-exercise" hidden><span>Continue</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
+    <dialog class="settings-dialog" id="settings-panel" aria-labelledby="settings-title"><div class="settings-heading"><h2 id="settings-title">Settings</h2><button class="settings-close" id="btn-close-settings" autofocus>Close</button></div><div class="settings-content">
+      <section><h3>Audio guidance</h3><p>Instructions stay visible on screen. Enable sound to hear them, too.</p><div class="small-actions"><button id="btn-enable-audio">Enable audio</button><button id="btn-replay-cue">Replay instruction</button><label class="choice"><input type="checkbox" id="mute-audio">Mute</label></div><p id="audio-status">Captions only. No microphone is requested.</p></section>
+      <section><h3>Cloud speech and explanations</h3><p>Optional. Local camera tracking, measurements and saved recordings work without a connection.</p><label>Demo access code<input type="password" id="gemini-access-code" autocomplete="off"></label><label class="choice"><input type="checkbox" id="enable-gemini">Enable cloud speech and explanations for approved instructions and finalized facts. Real clinical context stays on this device.</label></section>
+      <details><summary>About this demo</summary><p>Experimental team demonstration, not participant use. Clinical review, physical iPhone validation and ankle close-view feasibility remain pending. The app does not establish clinical suitability. Audio providers and generated explanations are labelled by their actual source.</p></details>
+    </div></dialog>
+  </div>
+  <script type="module" src="/src/capture/developer-demo.ts"></script>
+</body>
+</html>
