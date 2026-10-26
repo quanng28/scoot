@@ -1,6 +1,8 @@
 # SCOOT
 
-**Helping stroke survivors and clinicians review seated exercises with a phone camera, joint measurements, and explainable AI summaries.**
+*Stroke Coaching, Observation, and Ongoing Training*
+
+**Helping stroke survivors and clinicians review seated exercises by turning phone-camera joint tracking into measurements of how far, how fast, and when movement happens.**
 
 ## The problem
 
@@ -10,7 +12,7 @@ For stroke survivors practicing clinician-assigned seated exercises, a repetitio
 
 SCOOT is an experimental prototype for recording a short seated exercise and reviewing what happened alongside the video. Stroke survivors can see their tracked movement, while a supervising clinician can inspect joint angles, displacement, timing, and the exact moments that need a closer look.
 
-The phone calculates movement measurements locally. Optional Gemini summaries explain the recorded facts, while visible tracking limits show where evidence is missing. The goal is to support conversations about assigned exercises; clinical interpretation stays with the treating team.
+Joint geometry turns tracked body points into estimated angles, displacement, and movement timing. This gives clinicians specific measurements and replay timestamps to inspect alongside the video, rather than relying on repetition counts alone. The phone calculates these measurements locally; optional Gemini summaries explain the recorded facts, while visible tracking limits show where evidence is missing. The goal is to support conversations about assigned exercises; clinical interpretation stays with the treating team.
 
 ## Demo
 
