@@ -37,25 +37,45 @@ Normalized landmarks become pixels using the inference frame's width and height.
 
 **1. Projected elbow angle.** With shoulder **S**, elbow **E**, and wrist **W**, the dot product measures the angle at the elbow:
 
-$$\theta = \arccos\left(\operatorname{clamp}\left(\frac{(S-E)\cdot(W-E)}{\|S-E\|\|W-E\|},-1,1\right)\right)\frac{180}{\pi}$$
+$$
+c = \frac{(S-E)\cdot(W-E)}{\|S-E\|\|W-E\|}
+$$
 
-A projected straight arm approaches 180°. Invalid or near-zero limb vectors are rejected before division.
+$$
+\theta = \arccos\left(\min(1,\max(-1,c))\right)\frac{180}{\pi}
+$$
+
+The ratio **c** is clamped to [−1, 1] to handle floating-point rounding. A projected straight arm approaches 180°. Invalid or near-zero limb vectors are rejected before division.
 
 **2. Torso inclination change.** The shoulder–hip line is compared with its resting baseline, retaining the calibrated forward direction:
 
-$$\alpha = \operatorname{atan2}(S_x-H_x,-(S_y-H_y))\frac{180}{\pi},\qquad \Delta\alpha = s\,\operatorname{wrapTo180}(\alpha-\alpha_0)$$
+$$
+\alpha = \mathrm{atan2}(S_x-H_x,-(S_y-H_y))\frac{180}{\pi}
+$$
 
-Report the maximum positive forward change, clipped at zero.
+$$
+\Delta\alpha = s\,\mathrm{wrapTo180}(\alpha-\alpha_0)
+$$
+
+`atan2` retains the direction of the torso line; `wrapTo180` gives the smallest signed difference from the resting angle. Report the maximum positive forward change, clipped at zero.
 
 **3. Forward wrist displacement.** Project movement onto the fixed rest-to-target direction and normalize by the fixed reference:
 
-$$d=\frac{T-W_0}{\|T-W_0\|},\qquad f(t)=\frac{(W(t)-W_0)\cdot d}{L}$$
+$$
+d=\frac{T-W_0}{\|T-W_0\|}
+$$
+
+$$
+f(t)=\frac{(W(t)-W_0)\cdot d}{L}
+$$
 
 Results use **reference lengths**, not centimeters. Forward displacement is distinct from total displacement or path length.
 
 **4. Reach duration.** Use monotonic capture timestamps in milliseconds from movement onset to first confirmed target entry, excluding target hold and return:
 
-$$t_{\text{reach}}=\frac{t_{\text{target}}-t_{\text{onset}}}{1000}\ \text{seconds}$$
+$$
+t_{\mathrm{reach}}=\frac{t_{\mathrm{target}}-t_{\mathrm{onset}}}{1000}\ \mathrm{seconds}
+$$
 
 All three geometric peaks use that same outward interval. These are **2D kinematic estimates**, not force, muscle activation, or a clinical range-of-motion examination. Each other exercise has its own joint definitions and endpoint rules.
 
