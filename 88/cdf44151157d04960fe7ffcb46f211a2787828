@@ -1,0 +1,14 @@
+README.md
+  h_b7c093639d27cb 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88cdf44151157d04960fe7ffcb46f211a2787828",
+  "prompts": {},
+  "humans": {
+    "h_b7c093639d27cb": {
+      "author": "Quan Nguyen <quannguyenminh27082007@gmail.com>"
+    }
+  }
+}
