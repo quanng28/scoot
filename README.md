@@ -2,7 +2,7 @@
 
 *Stroke Coaching, Observation, and Ongoing Training*
 
-**Helping stroke survivors and clinicians review seated exercises by turning phone-camera joint tracking into measurements of how far, how fast, and when movement happens.**
+**Helping stroke survivors and clinicians review seated exercises through joint measurements that ground AI summaries in recorded movement.**
 
 ## The problem
 
