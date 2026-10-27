@@ -1,0 +1,49 @@
+.env.example
+  s_6fc44e64eb79c8::t_c7b4aa2f068dd5 13-15
+api/gemini-report.ts
+  s_6fc44e64eb79c8::t_171e18628ea965 3
+docs/langchain-handoff.md
+  s_6fc44e64eb79c8::t_0a54867cfe76b5 66
+index.html
+  s_6fc44e64eb79c8::t_99645efdbf880c 251
+scripts/report-eval/harness.ts
+  s_6fc44e64eb79c8::t_ea989671379cff 79
+server/gemini/config.ts
+  s_6fc44e64eb79c8::t_3e783cef5d5733 24,26-30,41,52-53,57
+server/gemini/endpoints.test.ts
+  s_6fc44e64eb79c8::t_e985ac3f3cfc9a 21,40-71
+server/gemini/http.ts
+  s_6fc44e64eb79c8::t_bec49bcc3c360a 77-81,84,88
+server/gemini/langchain/endpoint.test.ts
+  s_6fc44e64eb79c8::t_9a126a015ff96f 17,79
+server/gemini/report-endpoint.ts
+  s_6fc44e64eb79c8::t_9a9c62ba7d5822 61
+src/capture/developer-demo.html
+  s_6fc44e64eb79c8::t_080446a923e445 217
+src/capture/developer-demo.ts
+  s_6fc44e64eb79c8::t_17207c93732348 188-189,240-241,666
+src/report/report-controller.test.ts
+  s_6fc44e64eb79c8::t_ea54ef64cb9b77 106,117-125
+src/report/report-controller.ts
+  s_6fc44e64eb79c8::t_45d16c61ec34a1 89-91,97,107
+src/report/video-report-client.test.ts
+  s_6fc44e64eb79c8::t_a57825bce329d8 38,46-48
+src/report/video-report-client.ts
+  s_6fc44e64eb79c8::t_545cfa51b93d3c 4,10,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25670fec02541e4757713b4988ed4e17cd5b8880",
+  "prompts": {},
+  "sessions": {
+    "s_6fc44e64eb79c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4d5bb7d8-4d99-4464-83b9-5367c2094d5d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Quan Nguyen <quannguyenminh27082007@gmail.com>"
+    }
+  }
+}
