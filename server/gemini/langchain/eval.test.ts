@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
+import { main } from '../../../scripts/eval-report.js';
 import { evalFixturesSchema } from '../../../scripts/report-eval/fixtures.js';
 import { assertRunAllowed, parseOptions, runEvaluation } from '../../../scripts/report-eval/harness.js';
 import { percentile, summarizeRun } from '../../../scripts/report-eval/summary.js';
@@ -60,4 +61,18 @@ describe('synthetic paired evaluation harness', () => {
     const samples = [3, 1, 2];
     expect(percentile(samples, 0.5)).toBe(2); expect(percentile(samples, 0.95)).toBe(3); expect(percentile([], 0.95)).toBeNull(); expect(samples).toEqual([3, 1, 2]);
   });
+});
+
+it('suppresses inherited SDK verbose payload logging in the evaluation executable', async () => {
+  vi.stubEnv('LANGCHAIN_VERBOSE', 'true');
+  const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const write = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+  try {
+    await main(['--fixture', 'measured-forward_reach', '--runs', '1', '--max-calls', '3']);
+    const captured = JSON.stringify([log.mock.calls, info.mock.calls, warn.mock.calls, write.mock.calls]);
+    expect(captured).not.toMatch(/SOURCE FACTS|REPORTED CONTEXT|FICTIONAL FIXTURE:|REQUIRED SUMMARY|observations\":|system_instruction/);
+    expect(write).toHaveBeenCalled();
+  } finally { log.mockRestore(); info.mockRestore(); warn.mockRestore(); write.mockRestore(); vi.unstubAllEnvs(); }
 });

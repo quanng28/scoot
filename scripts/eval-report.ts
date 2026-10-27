@@ -29,6 +29,8 @@ async function traceSyntheticMetrics(run: EvalRun): Promise<void> {
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
   const options = parseOptions(args);
+  // This executable is a separate process; inherited SDK debug logging must never print fixtures.
+  process.env.LANGCHAIN_VERBOSE = 'false';
   const raw: unknown = JSON.parse(await readFile(resolve('fixtures/report-eval/cases.json'), 'utf8'));
   const fixtures = evalFixturesSchema.parse(raw);
   const selected = options.fixture ? fixtures.filter((f) => f.id === options.fixture) : fixtures;
