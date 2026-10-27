@@ -1,0 +1,19 @@
+server/gemini/endpoints.test.ts
+  s_6fc44e64eb79c8::t_96431daeef5635 57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46766dc58a53ba8c8bca16ba1c118d0fec36c8f6",
+  "prompts": {},
+  "sessions": {
+    "s_6fc44e64eb79c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4d5bb7d8-4d99-4464-83b9-5367c2094d5d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Quan Nguyen <quannguyenminh27082007@gmail.com>"
+    }
+  }
+}
