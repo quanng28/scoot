@@ -11,6 +11,10 @@ import { loadGeminiConfig, type GeminiConfig } from './config.js';
 import { AccessGuard, checkAccess, jsonReply, preflight, readBoundedJson, RequestFailure } from './http.js';
 import { InstanceBudget } from './limits.js';
 import { generateContent } from './provider.js';
+import { measuredSpec, quickSpec } from './langchain/specs.js';
+import { restModelCall } from './langchain/model.js';
+import { directMetrics, emitPipelineMetrics } from './langchain/metrics.js';
+import type { FailureClass, PipelineMetrics, ReportSpec } from './langchain/types.js';
 
 /**
  * POST /api/gemini-report (checklist F2/F3). Takes the allowlisted report DTO only, re-applies the
@@ -36,7 +40,7 @@ const status: Partial<Record<ReportErrorCode, number>> = { METHOD_NOT_ALLOWED: 4
 const fail = (code: ReportErrorCode, origin: string | null = null, issues?: string[]) =>
   jsonReply({ ok: false, error: { code, message: messages[code] ?? 'Explanation unavailable.' }, ...(issues ? { issues } : {}) } satisfies ReportResponse, status[code] ?? 502, origin);
 
-export type ReportDeps = { env?: Record<string, string | undefined>; config?: GeminiConfig; fetch?: typeof fetch; budget?: InstanceBudget; guard?: AccessGuard; now?: () => number; clock?: () => Date; timeoutMs?: number };
+export type ReportDeps = { env?: Record<string, string | undefined>; config?: GeminiConfig; fetch?: typeof fetch; budget?: InstanceBudget; guard?: AccessGuard; now?: () => number; clock?: () => Date; timeoutMs?: number; onMetrics?: (metrics: PipelineMetrics) => void };
 
 /** True when the body tries to send context that is not a fictional fixture (FR-21). */
 function carriesRealContext(body: unknown): boolean {
@@ -66,6 +70,8 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
       budget ??= new InstanceBudget(config.limits.maxPerInstance, deps.now);
       const rejected = budget.reserve('report', config.limits.reportPerHour);
       if (rejected) return fail(rejected, origin);
+      const requestBudget = budget;
+      if ((deps.env ?? process.env).SCOOT_LLM_PIPELINE === 'langchain') return chainedReport(await quickSpec(parsed.data.videoInput), config, request.signal, origin, deps, () => requestBudget.reserve('report', config.limits.reportPerHour));
       return videoReport(parsed.data.videoInput, config, request.signal, origin, deps);
     }
     if (carriesRealContext(body)) return fail('CONTEXT_NOT_PERMITTED', origin);
@@ -78,7 +84,10 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
     const rejected = budget.reserve('report', config.limits.reportPerHour);
     if (rejected) return fail(rejected, origin);
 
+    const requestBudget = budget;
+    if ((deps.env ?? process.env).SCOOT_LLM_PIPELINE === 'langchain') return chainedReport(await measuredSpec(input), config, request.signal, origin, deps, () => requestBudget.reserve('report', config.limits.reportPerHour));
     const inputDigest = await reportInputDigest(input);
+    const observe = directMetrics({ branch: 'measured', exerciseId: input.exercise.id, promptVersion: REPORT_PROMPT_VERSION, validatorVersion: VALIDATOR_VERSION, modelId: config.mode === 'live' ? config.textModel : 'offline-template-mock', inputDigest }, config.mode === 'live', deps.onMetrics);
     let raw: unknown;
     if (config.mode === 'mock') raw = templateReport(input, emptyContext()).report; // labelled mock: deterministic, never real-provider evidence
     else {
@@ -87,11 +96,14 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
         body: { system_instruction: { parts: [{ text: REPORT_SYSTEM_INSTRUCTION }] }, contents: [{ role: 'user', parts: [{ text: buildReportPrompt(input) }] }],
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: 'low' },
             responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: GEMINI_REPORT_JSON_SCHEMA } } } } });
-      if (!result.ok) return fail(result.code, origin);
-      try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { return fail('MALFORMED_RESPONSE', origin); }
+      if (!result.ok) { observe.finish(result.code, [], result.usage); return fail(result.code, origin); }
+      observe.generated(result.usage);
+      try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { observe.finish('MALFORMED_RESPONSE', ['JSON']); return fail('MALFORMED_RESPONSE', origin); }
     }
+    observe.generated();
     const checked = validateGeneratedReport(input, raw);
-    if (!checked.ok) return fail('REJECTED_CONTENT', origin, checked.issues);
+    if (!checked.ok) { observe.finish('VALIDATION', ['EVIDENCE']); return fail('REJECTED_CONTENT', origin, checked.issues); }
+    observe.finish();
     return jsonReply({ ok: true, binding: { inputSchemaVersion: REPORT_INPUT_VERSION, inputDigest },
       provenance: { source: config.mode === 'live' ? 'gemini' : 'mock_provider', model: config.mode === 'live' ? config.textModel : 'offline-template-mock',
         promptVersion: REPORT_PROMPT_VERSION, validatorVersion: VALIDATOR_VERSION, generatedAt: (deps.clock?.() ?? new Date()).toISOString() },
@@ -101,6 +113,7 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
 
 async function videoReport(input: VideoReportInput, config: GeminiConfig, signal: AbortSignal, origin: string | null, deps: ReportDeps): Promise<Response> {
   const inputDigest = await canonicalDigest(input);
+  const observe = directMetrics({ branch: 'quick', exerciseId: input.exercise.id, promptVersion: VIDEO_REPORT_PROMPT_VERSION, validatorVersion: VIDEO_REPORT_VALIDATOR_VERSION, modelId: config.mode === 'live' ? config.textModel : 'offline-template-mock', inputDigest }, config.mode === 'live', deps.onMetrics);
   let raw: unknown;
   if (config.mode === 'mock') raw = videoTemplateReport(input);
   else {
@@ -109,13 +122,38 @@ async function videoReport(input: VideoReportInput, config: GeminiConfig, signal
       body: { system_instruction: { parts: [{ text: VIDEO_REPORT_SYSTEM_INSTRUCTION }] }, contents: [{ role: 'user', parts: [{ text: buildVideoReportPrompt(input) }] }],
         generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: 'low' },
           responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: GEMINI_CLINICIAN_REPORT_JSON_SCHEMA } } } } });
-    if (!result.ok) return fail(result.code, origin);
-    try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { return fail('MALFORMED_RESPONSE', origin); }
+    if (!result.ok) { observe.finish(result.code, [], result.usage); return fail(result.code, origin); }
+    observe.generated(result.usage);
+    try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { observe.finish('MALFORMED_RESPONSE', ['JSON']); return fail('MALFORMED_RESPONSE', origin); }
   }
+  observe.generated();
   const checked = validateVideoReport(input, raw);
-  if (!checked.ok) return fail('REJECTED_CONTENT', origin, checked.issues);
+  if (!checked.ok) { observe.finish('VALIDATION', ['EVIDENCE']); return fail('REJECTED_CONTENT', origin, checked.issues); }
+  observe.finish();
   return jsonReply({ ok: true, binding: { inputSchemaVersion: VIDEO_REPORT_INPUT_VERSION, inputDigest },
     provenance: { source: config.mode === 'live' ? 'gemini' : 'mock_provider', model: config.mode === 'live' ? config.textModel : 'offline-template-mock',
       promptVersion: VIDEO_REPORT_PROMPT_VERSION, validatorVersion: VIDEO_REPORT_VALIDATOR_VERSION, generatedAt: (deps.clock?.() ?? new Date()).toISOString() },
     report: checked.report } satisfies VideoReportResponse, 200, origin);
+}
+
+/** Failure keeps the existing error envelope: the browser retains its already-visible local report. */
+async function chainedReport<T>(spec: ReportSpec<T>, config: GeminiConfig, signal: AbortSignal, origin: string | null, deps: ReportDeps, reserveRepair: () => FailureClass | null): Promise<Response> {
+  const { runReportPipeline } = await import('./langchain/pipeline.js');
+  const result = await runReportPipeline(spec, { modelId: config.mode === 'mock' ? 'offline-template-mock' : config.textModel, signal,
+    timeoutMs: deps.timeoutMs ?? REPORT_TIMEOUT_MS, reserveRepair,
+    call: config.mode === 'mock' ? async () => ({ ok: true, text: JSON.stringify(spec.fallback()) }) : restModelCall(spec, config, deps.fetch),
+    onMetrics: (metrics) => emitPipelineMetrics(metrics, deps.onMetrics) });
+  switch (result.metrics.outcome) {
+    case 'accepted_first_pass':
+    case 'accepted_after_repair':
+      return jsonReply({ ok: true, binding: { inputSchemaVersion: spec.branch === 'quick' ? VIDEO_REPORT_INPUT_VERSION : REPORT_INPUT_VERSION, inputDigest: spec.inputDigest },
+        provenance: { source: config.mode === 'live' ? 'gemini' : 'mock_provider', model: config.mode === 'live' ? config.textModel : 'offline-template-mock',
+          promptVersion: spec.promptVersion, validatorVersion: spec.validatorVersion, generatedAt: (deps.clock?.() ?? new Date()).toISOString(), pipeline: result.metrics }, report: result.report }, 200, origin);
+    case 'cancelled': return fail('CANCELLED', origin);
+    case 'fallback_validation': return fail('REJECTED_CONTENT', origin, [...new Set(result.metrics.steps.flatMap((s) => s.codes))]);
+    case 'fallback_provider_error': {
+      const code = result.metrics.failureClass;
+      return fail(code === 'MISSING_KEY' ? 'PROVIDER_DISABLED' : code === 'VALIDATION' || code === 'VALIDATOR_ERROR' || code === null ? 'PROVIDER_ERROR' : code, origin);
+    }
+  }
 }

@@ -121,3 +121,31 @@ See the [documentation index](docs/README.md) for architecture, measurement cont
 ## Current limits
 
 Designed around seated exercise review for stroke survivors. This experimental prototype is not clinically validated and does not replace individualized rehabilitation guidance. Camera view, occlusion, and tracking quality limit the measurements; a camera cannot detect pain. Physical-device audio and camera behavior need further verification, particularly spoken playback and close-view ankle tracking. Browser storage can be cleared or evicted. Public video sharing and cross-session comparisons are not implemented.
+
+## LLM pipeline and evaluation
+
+The server-only `SCOOT_LLM_PIPELINE=direct|langchain` flag defaults to `direct` (unset, empty or unrecognized values preserve direct behavior). `langchain` adds named LangChain runnables around the existing Gemini REST adapter: generate → existing JSON/schema/semantic validation → at most one targeted repair → validation again → deterministic local fallback. Only validation rejection permits repair. Provider errors, refusals, timeouts, cancellation, missing configuration and input rejection do not retry. Both calls share the 20-second server budget and consume the existing hourly/lifetime call limits.
+
+The measured-session and quick-recording branches keep their existing prompts, output contracts, digest binding, browser validation, controller states and immediate local reports. Optional pipeline provenance is backward compatible with stored reports. Structured local events contain timings, codes and provider-reported usage; they contain no prompts, outputs, context or secrets. Server requests suppress LangSmith tracing even when tracing environment flags are inherited.
+
+```sh
+npm ci
+npm run check
+npm run eval:report                         # deterministic fake provider; no external calls
+npm run eval:report -- --runs 1 --max-calls 12
+# Later, with server-side GEMINI_API_KEY configured:
+npm run eval:report -- --live --yes --fixture measured-forward_reach --runs 1 --max-calls 3
+```
+
+The harness tests both actual endpoint paths on 26 fictional fixtures. Before live execution it prints the maximum call count and generation settings and requires `--yes`; `--max-calls` is a hard cap (default 200). JSON outcomes and a Markdown summary are written to ignored `eval-results/`. Optional `--trace --yes` requires `LANGSMITH_API_KEY` and runs only in the synthetic evaluation process; trace inputs/outputs are hidden and only allowlisted step metadata is attached.
+
+First-pass validity means the existing validator accepts the first output; final validity includes one successful repair. Recovery uses initially rejected outputs as its denominator. Fallback includes validation/provider/preflight failures and cancellation. Latency uses measured nearest-rank p50/p95; usage is reported only when returned by the provider. See the preregistered [acceptance criteria](docs/report-eval/acceptance.md), [environment and official API references](docs/report-eval/environment.md) and [handoff](docs/langchain-handoff.md).
+
+Current **live synthetic** results:
+
+| Pipeline | First-pass validity | Final validity | Repair recovery | Fallback rate | p95 latency | Tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| direct | not yet run | not yet run | not yet run | not yet run | not yet run | not yet run |
+| langchain | not yet run | not yet run | not yet run | not yet run | not yet run | not yet run |
+
+Fake evaluations verify mechanics, not model efficacy, live cost or clinical usefulness. No clinician validation or real patient data is included. Measured validation can accept an explanation that cites only some facts (its copied summary still states every count). Quick validation (`video-report-validator.v3`) rejects headlines that omit or contradict the supplied overall status and unit-bearing numbers attributed to the wrong quantity; the evaluation still lists any accepted-output caveat its local detector finds and flags status contradictions as release blockers. Keep the default direct setting until live acceptance is complete.

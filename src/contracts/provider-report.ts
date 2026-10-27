@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pipelineMetricsSchema } from './report-pipeline.js';
 import { reasonText, type Reason } from '../analysis/reach-contract.js';
 import { STOP_REASONS } from './reach-session.js';
 import { EXERCISE_METRIC_MAP } from './exercise-metrics.js';
@@ -181,6 +182,7 @@ export type ReportErrorCode = 'METHOD_NOT_ALLOWED' | 'ORIGIN_DENIED' | 'ACCESS_D
 export const reportProvenanceSchema = z.strictObject({
   /** gemini: a genuine provider response; mock_provider: a labelled offline stand-in that is never real-provider evidence. */
   source: z.enum(['gemini', 'mock_provider']),
+  pipeline: pipelineMetricsSchema.optional(),
   model: z.string().min(1).max(80), promptVersion: z.string().min(1).max(40), validatorVersion: z.string().min(1).max(40), generatedAt: z.iso.datetime(),
 });
 export type ReportProvenance = z.infer<typeof reportProvenanceSchema>;

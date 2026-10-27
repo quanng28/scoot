@@ -14,7 +14,8 @@ import { REPORT_EXERCISES, reportProvenanceSchema } from './provider-report.js';
  */
 export const VIDEO_REPORT_INPUT_VERSION = 'video-report-input.v2';
 export const VIDEO_REPORT_PROMPT_VERSION = 'video-report-prompt.v2';
-export const VIDEO_REPORT_VALIDATOR_VERSION = 'video-report-validator.v2';
+/** v3: the headline must preserve the overall status, and unit-bearing numbers must match their own fact. */
+export const VIDEO_REPORT_VALIDATOR_VERSION = 'video-report-validator.v3';
 export const VIDEO_REPORT_LABEL = 'AI-assisted clinician summary · experimental · not a diagnosis' as const;
 
 const finite = z.number().finite();
@@ -209,6 +210,22 @@ const BANNED: [RegExp, string][] = [
 const RISK_WORD = /\b(pain\w*|sore\w*|strain\w*|injur\w*|damage\w*|hurt\w*)\b/i;
 const HEDGE = /\b(may|might|could|risk|possible|possibly|potential)\b/i;
 const MARKUP = /[<>#[\]`_]|\*(?!\*)|https?:/;
+/** Wording each status's headline must use; any other status's wording in the headline is a contradiction. */
+const STATUS_REQUIRED: Record<OverallStatus, RegExp> = { controlled: /\bcontrolled\b/i, review: /\breview\b|\btracking\b/i, high: /\bhigh strain risk\b/i, insufficient_data: /\binsufficient data\b/i };
+const STATUS_CLAIM: Record<OverallStatus, RegExp> = { controlled: /\bcontrolled\b/i, review: /\bneeds? review\b/i, high: /\bhigh strain risk\b/i, insufficient_data: /\binsufficient data\b/i };
+const NUM = String.raw`(\d+(?:\.\d+)?)`;
+/** Unit-anchored claims; each number must equal a value of that same quantity in the facts. */
+const ATTRIBUTED: [RegExp, string, (input: VideoReportInput, headline: boolean) => number[]][] = [
+  [new RegExp(`${NUM}\\s*(?:%|percent\\b)`, 'gi'), 'the tracking coverage', (i) => i.tracking.coverage === null ? [] : [Number(pct(i.tracking.coverage))]],
+  [new RegExp(`${NUM}\\s+fast[- ]movement warnings?\\b`, 'gi'), 'the fast-movement warning count', (i, headline) => [i.pace.fastWarnings, ...(headline ? [] : i.reps.map((r) => r.warnings))]],
+  [new RegExp(`${NUM}\\s+high strain risk\\b`, 'gi'), 'the high strain risk event count', (i, headline) => headline ? [i.events.filter((e) => e.severity === 'high').length] : [...Array(i.events.length + 1).keys()]],
+  [new RegExp(`${NUM}\\s*degrees per second\\b`, 'gi'), 'a measured or limit angular speed', (i) => [i.pace.fastDegPerSec, ...nonNull([i.pace.peakDegPerSec]), ...i.reps.map((r) => r.peakDegPerSec), ...i.events.map((e) => e.peakDegPerSec)]],
+  [new RegExp(`${NUM}\\s*limb lengths? per second\\b`, 'gi'), 'a measured or limit limb speed', (i) => [i.pace.fastLimbLengthsPerSec, ...nonNull([i.pace.peakLimbLengthsPerSec]), ...i.reps.map((r) => r.peakLimbLengthsPerSec), ...i.events.map((e) => e.peakLimbLengthsPerSec)]],
+  [new RegExp(`${NUM}\\s*times\\b`, 'gi'), 'a stated multiple of a limit', (i) => [...nonNull([i.pace.peakDegPerSec]), ...i.events.map((e) => e.peakDegPerSec)].map((v) => Number(ratio(v, i.pace.fastDegPerSec)))
+    .concat([...nonNull([i.pace.peakLimbLengthsPerSec]), ...i.events.map((e) => e.peakLimbLengthsPerSec)].map((v) => Number(ratio(v, i.pace.fastLimbLengthsPerSec))))],
+  [new RegExp(`${NUM}\\s*degrees\\b(?!\\s*per second)`, 'gi'), 'a measured angle', (i) => [...nonNull([i.pace.angleMinDeg, i.pace.angleMaxDeg]), ...(i.pace.angleMinDeg !== null && i.pace.angleMaxDeg !== null ? [Number((i.pace.angleMaxDeg - i.pace.angleMinDeg).toFixed(1))] : []), ...i.reps.map((r) => r.excursionDeg)]],
+];
+const nonNull = (values: (number | null)[]) => values.filter((v): v is number => v !== null);
 
 /** Guardrail acceptance for generated (or template) clinician text. */
 export function validateVideoReport(input: VideoReportInput, raw: unknown): { ok: true; report: ClinicianReport } | { ok: false; issues: string[] } {
@@ -225,7 +242,20 @@ export function validateVideoReport(input: VideoReportInput, raw: unknown): { ok
     if (MARKUP.test(text.replaceAll('**', ''))) issues.push(`${where}: unsupported formatting`);
     if ((text.match(/\*\*/g) ?? []).length % 2) issues.push(`${where}: unbalanced bold`);
     for (const sentence of text.split(/(?<=[.!?])\s+/)) if (RISK_WORD.test(sentence) && !HEDGE.test(sentence) && !/camera cannot detect pain/i.test(sentence)) { issues.push(`${where}: unhedged risk statement`); break; }
+    const plain = text.replaceAll('**', '');
+    for (const [pattern, quantity, values] of ATTRIBUTED) {
+      const allowedValues = values(input, where === 'headline');
+      for (const m of plain.matchAll(pattern)) {
+        const claimed = Number(m[1]);
+        if (!allowedValues.some((v) => Math.abs(v - claimed) < 1e-9)) { issues.push(`${where}: number ${m[1]}${pattern.source.includes('%') ? '%' : ''} is not ${quantity}`); break; }
+      }
+    }
+    if (input.overall === 'insufficient_data' && where !== 'headline' && STATUS_CLAIM.controlled.test(plain)) issues.push(`${where}: describes movement as controlled with insufficient data`);
   }
+  const headline = report.headline.replaceAll('**', '');
+  if (!STATUS_REQUIRED[input.overall].test(headline)) issues.push('headline: does not state the overall status');
+  if (OVERALL_STATUSES.some((s) => s !== input.overall && STATUS_CLAIM[s].test(headline)) || (input.pace.fastWarnings > 0 && /\bno fast[- ]movement warnings?\b/i.test(headline)))
+    issues.push('headline: contradicts the overall status');
   const events = input.events.map((e) => e.index);
   if (report.riskAlerts.length !== events.length || report.riskAlerts.some((a, i) => a.event !== events[i])) issues.push('riskAlerts must cover each event once, in order');
   return issues.length ? { ok: false, issues: issues.slice(0, 20) } : { ok: true, report };

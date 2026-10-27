@@ -1,16 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { PaceSummary } from '../analysis/pace-monitor.js';
+import { videoReportTestInput as input, videoReportTestPace as pace } from './video-report.test-fixtures.js';
 import { buildVideoReportInput, buildVideoReportPrompt, validateVideoReport, videoReportFacts, videoReportInputSchema, videoTemplateReport } from './video-report.js';
 
-const pace: PaceSummary = {
-  trackedSec: 17.25, angleMinDeg: 8.04, angleMaxDeg: 164.7, peakSpeedDegPerSec: 844.4, peakLimbLengthsPerSec: 6.123, fastWarnings: 2,
-  events: [{ index: 1, tMs: 24_300, rep: 1, peakDegPerSec: 844.4, peakLimbPerSec: 6.12, severity: 'high' }, { index: 2, tMs: 41_000, rep: 2, peakDegPerSec: 230, peakLimbPerSec: 2.7, severity: 'moderate' }],
-  reps: [{ index: 1, startMs: 23_000, endMs: 26_000, minDeg: 9, maxDeg: 160, excursionDeg: 150.2, peakDegPerSec: 844.4, peakLimbPerSec: 6.12, warnings: 1 },
-    { index: 2, startMs: 40_000, endMs: 43_500, minDeg: 9, maxDeg: 120, excursionDeg: 110, peakDegPerSec: 230, peakLimbPerSec: 2.7, warnings: 1 },
-    { index: 3, startMs: 50_000, endMs: 54_000, minDeg: 9, maxDeg: 100, excursionDeg: 90, peakDegPerSec: 95, peakLimbPerSec: 1.1, warnings: 0 }],
-  series: [],
-};
-const input = buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'STOPPED', recordingDurationMs: 60_010, hasVideo: true, pace });
 
 describe('video-only clinician report contract', () => {
   it('derives a locally computed overall status, coverage and timestamped facts', () => {
@@ -67,5 +58,50 @@ describe('video-only clinician report contract', () => {
     const calm = buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'STOPPED', recordingDurationMs: 60_000, hasVideo: true,
       pace: { ...pace, trackedSec: 60, fastWarnings: 0, events: [] } });
     expect(calm.overall).toBe('controlled');
+  });
+});
+
+describe('video-report-validator.v3 status fidelity and number attribution', () => {
+  const build = (patch: Partial<typeof pace>, durationMs: number | null = 60_000) =>
+    buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'STOPPED', recordingDurationMs: durationMs, hasVideo: durationMs !== null, pace: { ...pace, ...patch } });
+  const statuses = {
+    high: input,
+    reviewWarnings: build({ trackedSec: 60, fastWarnings: 1, events: [pace.events[1]!] }),
+    reviewCoverage: build({ fastWarnings: 0, events: [] }),
+    controlled: build({ trackedSec: 60, fastWarnings: 0, events: [] }),
+    insufficient: build({ angleMinDeg: null }),
+  };
+  const issues = (target: typeof input, patch: object) => { const r = validateVideoReport(target, { ...videoTemplateReport(target), ...patch }); return r.ok ? '' : r.issues.join(' | '); };
+
+  it('derives every status fixture and accepts each deterministic template', () => {
+    expect(Object.fromEntries(Object.entries(statuses).map(([k, v]) => [k, v.overall])))
+      .toEqual({ high: 'high', reviewWarnings: 'review', reviewCoverage: 'review', controlled: 'controlled', insufficient: 'insufficient_data' });
+    for (const target of Object.values(statuses)) expect(validateVideoReport(target, videoTemplateReport(target))).toMatchObject({ ok: true });
+  });
+
+  it('rejects a headline that contradicts or omits the supplied overall status', () => {
+    expect(issues(statuses.high, { headline: 'Movements stayed **controlled**, with no fast-movement warnings.' })).toContain('headline: contradicts the overall status');
+    expect(issues(statuses.insufficient, { headline: 'Movements stayed **controlled** throughout.' })).toContain('headline: contradicts the overall status');
+    expect(issues(statuses.controlled, { headline: '**Insufficient data**: angles are unavailable.' })).toContain('headline: contradicts the overall status');
+    expect(issues(statuses.reviewWarnings, { headline: 'Movement reached **high strain risk** levels. Replay review is recommended.' })).toContain('headline: contradicts the overall status');
+    expect(issues(statuses.controlled, { headline: 'Movements **need review**.' })).toContain('headline: contradicts the overall status');
+    expect(issues(statuses.high, { headline: 'The recording was analysed.' })).toContain('headline: does not state the overall status');
+    expect(issues(statuses.insufficient, { speedAndControl: 'Rep 3 was **controlled**.' })).toContain('speedAndControl: describes movement as controlled with insufficient data');
+    // "uncontrolled" is not the status word; legitimate review headlines still pass.
+    expect(issues(statuses.high, { headline: '**2 fast-movement warnings**, including **1 high strain risk** event with uncontrolled speed. Review is recommended.' })).toBe('');
+  });
+
+  it('rejects numbers that exist in the facts but are attributed to the wrong quantity', () => {
+    expect(issues(statuses.high, { trackingQuality: 'Body tracking covered **2%** of the recording.' })).toContain('trackingQuality: number 2% is not the tracking coverage');
+    expect(issues(statuses.insufficient, { trackingQuality: 'Body tracking covered **100 percent** of the recording.' })).toContain('number 100%');
+    expect(issues(statuses.high, { headline: '**1 fast-movement warnings**, including **2 high strain risk** events. Replay review is recommended.' }))
+      .toMatch(/headline: number 1 is not the fast-movement warning count.*headline: number 2 is not the high strain risk event count/);
+    expect(issues(statuses.high, { speedAndControl: 'Peak angular speed was **95 degrees per second**, **5.6 times** the limit.' })).toBe('');
+    expect(issues(statuses.high, { speedAndControl: 'Peak angular speed was **8 degrees per second**.' })).toContain('number 8 is not a measured or limit angular speed');
+    expect(issues(statuses.high, { speedAndControl: 'Peak wrist speed was **2 limb lengths per second**.' })).toContain('number 2 is not a measured or limit limb speed');
+    expect(issues(statuses.high, { speedAndControl: 'Peak angular speed was **844 degrees per second**, **3 times** the limit.' })).toContain('number 3 is not a stated multiple of a limit');
+    expect(issues(statuses.high, { rangeOfMotion: 'Observed angle ranged from **8.0** to **9 degrees**.' })).toContain('number 9 is not a measured angle');
+    // Per-rep warning counts remain valid outside the overall headline.
+    expect(issues(statuses.high, { speedAndControl: 'Rep 1 had **1 fast-movement warning**; reps without warnings: **3**.' })).toBe('');
   });
 });
