@@ -27,7 +27,9 @@ it('runs the existing rich quick adversarial cases through both validation attem
     expect(validateVideoReport(input, raw).ok).toBe(false); await rejectTwice(spec, raw);
   }
   expect(validateQuickWithCodes(input, { ...t, riskAlerts: [] })).toEqual({ ok: false, codes: ['EVENTS'] });
-  expect(validateQuickWithCodes(input, { ...t, headline: '<b>2</b> warnings' })).toEqual({ ok: false, codes: ['FORMAT'] });
+  expect(validateQuickWithCodes(input, { ...t, headline: '<b>2</b> warnings' })).toEqual({ ok: false, codes: ['FORMAT', 'STATUS'] });
+  // v3 status fidelity: a contradicting headline is rejected on both attempts rather than accepted.
+  await rejectTwice(spec, { ...t, headline: 'Movements stayed **controlled**, with no fast-movement warnings.' });
 });
 
 it('runs existing measured adversarial families through both attempts without loosening acceptance', async () => {

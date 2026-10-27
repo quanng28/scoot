@@ -50,7 +50,7 @@ export function summarizeRun(run: EvalRun): string {
   const statusFailures = run.rows.some((r) => r.caveats.some((c) => c.includes('contradicts')));
   lines.push('', '## Acceptance decision', '', run.mode === 'fake' ? 'Not assessed: fake outcomes cannot meet the preregistered live improvement or latency criteria.'
     : 'Human assessment required against docs/report-eval/acceptance.md; inspect paired rates, at least 20 first-pass rejections, added p95 latency, incomplete runs and every accepted-output caveat.',
-    statusFailures ? 'Release blocker observed in this synthetic run: existing quick validation can accept a headline inconsistent with supplied status. Validators were not loosened; this needs a separately reviewed validator change.' : 'No automatic clinical correctness claim is made.',
+    statusFailures ? 'Release blocker observed in this synthetic run: an accepted quick headline was flagged as inconsistent with the supplied status. Investigate before promotion.' : 'No automatic clinical correctness claim is made.',
     '', 'Synthetic limits: no clinician validation, no real patient data, no measure of clinical usefulness or safety. Fake latency is local machine execution time. Missing token usage is unknown. Payloads, prompts, context, credentials and model text are excluded from these files.', '');
   return lines.join('\n');
 }

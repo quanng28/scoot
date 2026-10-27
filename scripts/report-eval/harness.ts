@@ -60,7 +60,7 @@ function acceptedCaveats(fixture: EvalFixture, report: unknown): string[] {
     const parsed = clinicianReportSchema.parse(report);
     if ((fixture.input.overall !== 'controlled' && /\bcontrolled\b/i.test(parsed.headline)) ||
       (fixture.input.overall === 'controlled' && /insufficient data/i.test(parsed.headline)))
-      notes.push('Accepted headline contradicts the supplied overall status; existing quick validator does not enforce status fidelity.');
+      notes.push('Accepted headline contradicts the supplied overall status despite video-report-validator.v3 status checks.');
   }
   return [...new Set(notes)];
 }

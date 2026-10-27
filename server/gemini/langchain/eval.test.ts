@@ -32,7 +32,10 @@ describe('synthetic paired evaluation harness', () => {
     expect(run.rows.filter((r) => r.fixtureId === 'measured-injection-gate').every((r) => r.calls === 0 && r.responseCode === 'CONTEXT_NOT_PERMITTED')).toBe(true);
     expect(JSON.stringify(run)).not.toMatch(/offline-fake-key|system_instruction|calculate nothing|FICTIONAL FIXTURE:|observations":|headline":|contents":|apiKey/);
     const summary = summarizeRun(run);
-    for (const text of ['First-pass valid', 'Final valid', 'Repair recovery', 'Failure classes', 'p50 / p95', 'Per-fixture', 'Accepted output', 'not yet run', 'Release blocker']) expect(summary).toContain(text);
+    for (const text of ['First-pass valid', 'Final valid', 'Repair recovery', 'Failure classes', 'p50 / p95', 'Per-fixture', 'Accepted output', 'not yet run']) expect(summary).toContain(text);
+    // The fake schedule's status-contradicting headlines are now rejected by validation, never accepted.
+    expect(run.rows.some((r) => r.caveats.some((c) => c.includes('contradicts')))).toBe(false);
+    expect(summary).not.toContain('Release blocker observed');
   });
   it('enforces the global call cap across both actual endpoint arms', async () => {
     const run = await runEvaluation(await fixtures(), parseOptions(['--max-calls', '2', '--runs', '1']));

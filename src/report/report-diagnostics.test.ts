@@ -27,4 +27,10 @@ describe('payload-free diagnostic adapters', () => {
     expect(JSON.stringify({ result, messages: VALIDATION_MESSAGES })).not.toContain('PRIVATE_SENTINEL');
     expect(validateQuickWithCodes(quick, {})).toEqual({ ok: false, codes: ['SCHEMA'] });
   });
+  it('maps status contradictions to targeted STATUS guidance and wrong attribution to NUMBER', () => {
+    const q = videoTemplateReport(quick);
+    expect(quick.overall).toBe('insufficient_data');
+    expect(validateQuickWithCodes(quick, { ...q, headline: 'Movements stayed **controlled**.' })).toEqual({ ok: false, codes: ['STATUS'] });
+    expect(validateQuickWithCodes(quick, { ...q, trackingQuality: 'Tracking covered **5%** of the recording.' })).toEqual({ ok: false, codes: ['NUMBER'] });
+  });
 });

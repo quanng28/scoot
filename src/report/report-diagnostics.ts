@@ -15,6 +15,7 @@ export const VALIDATION_MESSAGES = {
   FORMAT: 'Use only the permitted formatting, with balanced double-asterisk bold markers.',
   RISK: 'Preserve hedged risk wording; never assert diagnosis, injury, certainty, safety or treatment.',
   EVENTS: 'Include every supplied event exactly once, in the original order.',
+  STATUS: 'State the supplied overall status in the headline; never describe movement as controlled unless that is the status.',
   EVIDENCE: 'Use only supplied facts; preserve numbers, status, event order and hedged risk wording.',
 } as const;
 export type ValidationCode = keyof typeof VALIDATION_MESSAGES;
@@ -22,6 +23,7 @@ export type ValidationCode = keyof typeof VALIDATION_MESSAGES;
 function codeForIssue(issue: string): ValidationCode {
   if (issue.startsWith('schema')) return 'SCHEMA';
   if (issue.startsWith('riskAlerts must cover')) return 'EVENTS';
+  if (/: (contradicts the overall status|does not state the overall status|describes movement as controlled)/.test(issue)) return 'STATUS';
   if (/: number /.test(issue)) return 'NUMBER';
   if (/: (unsupported formatting|unbalanced bold)/.test(issue)) return 'FORMAT';
   if (/: (unhedged risk statement|diagnosis|condition claim|certainty|injury claim|prescription|safety judgement)/.test(issue)) return 'RISK';
