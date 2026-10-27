@@ -10,3 +10,6 @@ test-results/
 .gstack/
 .vercel
 .env*.local
+
+# Generated synthetic report evaluation artifacts
+eval-results/

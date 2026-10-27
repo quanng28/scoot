@@ -19,7 +19,8 @@
     "app:dev": "npm run app:assets && vite --port 5173 --strictPort",
     "app:build": "npm run app:assets && vite build",
     "app:preview": "vite preview --port 4174 --strictPort",
-    "app:browser-check": "node scripts/app-browser-check.mjs"
+    "app:browser-check": "node scripts/app-browser-check.mjs",
+    "eval:report": "tsc -p tsconfig.build.json && node dist/scripts/eval-report.js"
   },
   "dependencies": {
     "@langchain/core": "1.3.0",
