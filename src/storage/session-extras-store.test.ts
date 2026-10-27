@@ -8,6 +8,7 @@ import { fourWorkflowRecords } from '../contracts/seated-workflow.test-fixtures.
 import { syntheticReachSession } from '../features/fixtures/synthetic-reach.js';
 import { buildProviderReportInput, reportInputDigest } from '../report/report-input.js';
 import { syntheticContext } from '../report/synthetic-context.js';
+import { ReportController } from '../report/report-controller.js';
 import { templateReport } from '../report/template-report.js';
 import { DB_NAME, SessionStore, StorageError } from './session-store.js';
 
@@ -193,4 +194,31 @@ it.each([0, 1, 2, 3])('reopens matching accepted report with four-workflow exerc
   expect(await reopened.video?.text()).toBe('video');
   expect(reopened.extras).toEqual(extras);
   expect(reopened.extrasProblem).toBeNull();
+});
+
+it.each([false, true])('revalidates stored reports with optional pipeline provenance: %s', async (extended) => {
+  const { store, name } = fresh();
+  const id = `provenance-${extended}`;
+  const extras = await extrasFor(id);
+  const accepted = extras.acceptedReport;
+  if (!accepted) throw new Error('accepted fixture required');
+  const input = buildProviderReportInput(record(id), extras.context).input;
+  if (extended) accepted.provenance.pipeline = {
+    pipeline: 'langchain', branch: 'measured', exerciseId: input.exercise.id, promptVersion: accepted.provenance.promptVersion,
+    validatorVersion: accepted.provenance.validatorVersion, modelId: accepted.provenance.model, inputDigest: accepted.inputDigest,
+    steps: [{ step: 'generate', outcome: 'pass', durationMs: 1, attempt: 1, codes: [] }, { step: 'validate', outcome: 'pass', durationMs: 1, attempt: 1, codes: [] }],
+    attempts: 1, repaired: false, outcome: 'accepted_first_pass', failureClass: null, durationMs: 2,
+  };
+  await store.save(record(id), null, extras);
+  store.close();
+  const loaded = await fresh(name).store.load(id);
+  expect(loaded.extras.acceptedReport).toEqual(accepted);
+  expect(loaded.extrasProblem).toBeNull();
+  const controller = new ReportController({ sessionId: id, input, inputDigest: accepted.inputDigest,
+    existing: loaded.extras.acceptedReport, transport: async () => ({ ok: false, error: { code: 'PROVIDER_DISABLED', message: 'Offline' } }) });
+  expect(controller.state.status).toBe('accepted');
+  const raw = await openDB(name);
+  await raw.put('extras', { ...extras, acceptedReport: { ...accepted, report: { ...accepted.report, summary: 'The patient has fully recovered.' } } });
+  raw.close();
+  expect((await fresh(name).store.load(id)).extras.acceptedReport).toBeNull();
 });
