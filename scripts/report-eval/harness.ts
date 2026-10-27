@@ -76,7 +76,7 @@ export async function runEvaluation(fixtures: EvalFixture[], options: EvalOption
     settings: { maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 20_000, automaticProviderRetries: 0 }, rows: [] };
   const origin = 'https://synthetic-eval.invalid', access = 'fictional-evaluation-access-0123456789';
   const config: GeminiConfig = { mode: 'live', apiKey: options.live ? (env.GEMINI_API_KEY?.trim() ?? '') : 'offline-fake-key', textModel: modelId,
-    ttsModel: 'gemini-3.8-flash-lite-tts', ttsVoice: 'Kore', accessCodeSha256: createHash('sha256').update(access).digest('hex'), allowedOrigins: [origin],
+    ttsModel: 'gemini-3.8-flash-lite-tts', ttsVoice: 'Kore', accessCodeSha256: createHash('sha256').update(access).digest('hex'), allowedOrigins: [origin], publicReports: false,
     limits: { reportPerHour: 100_000, ttsPerHour: 1, maxPerInstance: options.maxCalls } };
   const budget = new InstanceBudget(options.maxCalls);
   for (const [index, fixture] of selected.entries()) for (let repetition = 1; repetition <= options.runs; repetition++) for (const pipeline of ['direct', 'langchain'] as const) {

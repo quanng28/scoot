@@ -18,7 +18,7 @@ const KEY = 'test-key-not-a-real-secret';
 const ORIGIN = 'https://demo.example';
 const CODE = 'demo-code-0123456789';
 const config = (patch: Partial<GeminiConfig> = {}): GeminiConfig => ({ mode: 'live', apiKey: KEY, textModel: 'gemini-3.8-flash', ttsModel: 'gemini-3.8-flash-lite-tts', ttsVoice: 'Kore',
-  accessCodeSha256: createHash('sha256').update(CODE).digest('hex'), allowedOrigins: [ORIGIN], limits: { reportPerHour: 10, ttsPerHour: 60, maxPerInstance: 200 }, ...patch });
+  accessCodeSha256: createHash('sha256').update(CODE).digest('hex'), allowedOrigins: [ORIGIN], publicReports: false, limits: { reportPerHour: 10, ttsPerHour: 60, maxPerInstance: 200 }, ...patch });
 const post = (path: string, body: unknown, headers: Record<string, string> = {}, signal?: AbortSignal) => new Request(`${ORIGIN}${path}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body),
   headers: { Origin: ORIGIN, Authorization: `Bearer ${CODE}`, 'Content-Type': 'application/json', ...headers }, ...(signal ? { signal } : {}) });
 const gemini = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -34,6 +34,40 @@ describe('loadGeminiConfig', () => {
     expect(loadGeminiConfig({ GEMINI_PROVIDER_MODE: 'live', GEMINI_API_KEY: KEY, GEMINI_ACCESS_CODE_SHA256: hash, GEMINI_ALLOWED_ORIGINS: ORIGIN, GEMINI_TEXT_MODEL: 'gemini-9-ultra' }).ok).toBe(false);
     const ok = loadGeminiConfig({ GEMINI_PROVIDER_MODE: 'mock', GEMINI_API_KEY: KEY, GEMINI_ACCESS_CODE_SHA256: hash, GEMINI_ALLOWED_ORIGINS: `${ORIGIN}, http://localhost:5173` });
     expect(ok.ok && ok.config).toMatchObject({ mode: 'mock', apiKey: null, allowedOrigins: [ORIGIN, 'http://localhost:5173'], textModel: 'gemini-3.8-flash' });
+  });
+});
+
+describe('public reports (GEMINI_PUBLIC_REPORTS)', () => {
+  const env = { GEMINI_PROVIDER_MODE: 'mock', GEMINI_ALLOWED_ORIGINS: ORIGIN };
+  const noCode = (path: string, body: unknown, origin = ORIGIN) => new Request(`${ORIGIN}${path}`, { method: 'POST', body: JSON.stringify(body), headers: { Origin: origin, 'Content-Type': 'application/json' } });
+  const videoInput = buildVideoReportInput({ exerciseId: 'seated_forward_reach', side: 'left', stopReason: 'SYNTHETIC_FIXTURE', recordingDurationMs: null, hasVideo: false, pace: null });
+
+  it('is off by default and only then may the access code be omitted', () => {
+    expect(loadGeminiConfig({ ...env, GEMINI_PUBLIC_REPORTS: 'false' })).toEqual({ ok: false, problem: 'PROTECTION_UNCONFIGURED' });
+    expect(loadGeminiConfig({ ...env, GEMINI_PUBLIC_REPORTS: 'yes' })).toEqual({ ok: false, problem: 'PROTECTION_UNCONFIGURED' });
+    expect(loadGeminiConfig({ GEMINI_PROVIDER_MODE: 'mock', GEMINI_PUBLIC_REPORTS: 'true' })).toEqual({ ok: false, problem: 'PROTECTION_UNCONFIGURED' });
+    const ok = loadGeminiConfig({ ...env, GEMINI_PUBLIC_REPORTS: 'true' });
+    expect(ok.ok && ok.config).toMatchObject({ publicReports: true, accessCodeSha256: null });
+  });
+
+  it('serves explanations without a code from allowed origins only, while cloud voice still requires the code', async () => {
+    const fetchMock = vi.fn();
+    const report = createReportEndpoint({ env: { ...env, GEMINI_PUBLIC_REPORTS: 'true' }, fetch: fetchMock as typeof fetch });
+    expect((await report(noCode('/api/gemini-report', { videoInput }))).status).toBe(200);
+    const measured = buildProviderReportInput(syntheticReachSession('public-session'), emptyContext()).input;
+    expect((await report(noCode('/api/gemini-report', { input: measured }))).status).toBe(200);
+    expect(await errorCode(await report(noCode('/api/gemini-report', { videoInput }, 'https://evil.example')))).toBe('ORIGIN_DENIED');
+    const tts = createTtsEndpoint({ config: config({ mode: 'mock', apiKey: null, accessCodeSha256: null, publicReports: true }), fetch: fetchMock as typeof fetch });
+    const cue = { catalogVersion: CUE_CATALOG_VERSION, cueId: 'tracking.wrist' };
+    expect(await errorCode(await tts(noCode('/api/gemini-tts', cue)))).toBe('ACCESS_DENIED');
+    expect(await errorCode(await tts(post('/api/gemini-tts', cue)))).toBe('ACCESS_DENIED');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the code mandatory when public reports are off', async () => {
+    const report = createReportEndpoint({ config: config({ mode: 'mock', apiKey: null }), fetch: vi.fn() as typeof fetch });
+    expect(await errorCode(await report(noCode('/api/gemini-report', { videoInput })))).toBe('ACCESS_DENIED');
+    expect((await report(post('/api/gemini-report', { videoInput }))).status).toBe(200);
   });
 });
 

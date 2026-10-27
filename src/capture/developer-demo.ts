@@ -185,6 +185,8 @@ const preview = el<HTMLVideoElement>('live-video');
 const canvas = el<HTMLCanvasElement>('overlay-canvas');
 const playback = el<HTMLVideoElement>('playback-video');
 const cloudAccess = () => checked('enable-gemini') ? value('gemini-access-code').trim() || null : null;
+/** Explanations need only the explicit opt-in; the server decides whether a code is required (public demo). */
+const geminiEnabled = () => checked('enable-gemini');
 /** Recording cues whose expiry is shorter than a cold Gemini TTS request: cache them before they are needed. */
 const PREFETCH_CUES = ['recording.started', 'pace.slow_down', 'tracking.multiple', 'countdown.5', 'countdown.4', 'countdown.3', 'countdown.2', 'countdown.1', 'stop.stopped', 'stop.time_limit'] as const;
 let cuePrefetch: AbortController | null = null;
@@ -235,8 +237,8 @@ const controller = new CaptureController(renderCapture, (outcome) => {
     renderVideoReport(videoTemplateReport(input));
     status('Recording ended. The clinician movement report is shown below the replay.');
     // The report is the purpose of this view: request the Gemini version straight away when Gemini is set up.
-    if (cloudAccess()) requestVideoExplanation();
-    else renderVideoReportStatus('Local report from measured angles and speeds. Turn on Gemini in Settings (access code) to generate the AI clinician report. No video or landmarks are ever sent.', false);
+    if (geminiEnabled()) requestVideoExplanation();
+    else renderVideoReportStatus('Local report from measured angles and speeds. Turn on Gemini in Settings to generate the AI clinician report. No video or landmarks are ever sent.', false);
   } catch (error) {
     el('video-report').hidden = true;
     status(`Recording ended. The movement summary is unavailable: ${errorText(error)}`);
@@ -661,7 +663,7 @@ on('btn-recording-mute', () => { input('mute-audio').checked = !checked('mute-au
 input('enable-gemini').addEventListener('change', () => { speaker.stop(); reportController?.cancel(); text('audio-status', checked('enable-gemini') ? 'Gemini endpoints enabled for explicit requests. Account/model availability and live behavior remain unverified.' : 'Gemini requests disabled. Browser voice/captions remain available.'); prefetchCueAudio(); });
 input('gemini-access-code').addEventListener('change', () => { speaker.stop(); reportController?.cancel(); prefetchCueAudio(); });
 on('btn-generate-report', () => {
-  if (!checked('enable-gemini') || !cloudAccess()) { status('Enable optional Gemini and enter the demo access code before requesting an explanation.'); return; }
+  if (!geminiEnabled()) { status('Enable optional Gemini in Settings before requesting an explanation.'); return; }
   if (!reportController) { status('The optional explanation adapter is not ready. Local facts remain available.'); return; }
   reportController.request();
 });

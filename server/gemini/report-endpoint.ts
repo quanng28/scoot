@@ -58,7 +58,7 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
     const config = loaded.config;
     if (request.method === 'OPTIONS') return preflight(request, config);
     if (request.method !== 'POST') return fail('METHOD_NOT_ALLOWED');
-    const access = checkAccess(request, config, guard);
+    const access = checkAccess(request, config, guard, config.publicReports);
     if (!access.ok) return fail(access.code);
     const origin = access.origin;
     let body: unknown;

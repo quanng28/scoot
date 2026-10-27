@@ -86,22 +86,25 @@ export class ReportController {
 const CODES: ReportErrorCode[] = ['METHOD_NOT_ALLOWED', 'ORIGIN_DENIED', 'ACCESS_DENIED', 'PROTECTION_UNCONFIGURED', 'PROVIDER_DISABLED', 'INVALID_INPUT',
   'CONTEXT_NOT_PERMITTED', 'REQUEST_TOO_LARGE', 'RATE_LIMITED', 'BUDGET_EXHAUSTED', 'TIMEOUT', 'CANCELLED', 'PROVIDER_ERROR', 'REFUSED', 'MALFORMED_RESPONSE',
   'REJECTED_CONTENT', 'NETWORK_ERROR', 'STALE_RESPONSE'];
+/** JSON headers, with the bearer access code only when the tester entered one. */
+export const reportHeaders = (code: string | null): Record<string, string> =>
+  code ? { 'Content-Type': 'application/json', Authorization: `Bearer ${code}` } : { 'Content-Type': 'application/json' };
 const knownCode = (code: string): ReportErrorCode => (CODES as string[]).includes(code) ? code as ReportErrorCode : 'PROVIDER_ERROR';
 
 /**
  * Browser transport for POST /api/gemini-report. The access code is typed by the tester at runtime and
  * held in memory by the caller; it is never bundled. No key or provider URL exists in the client.
+ * Without a code the request is sent unauthenticated: the server decides (public demo or ACCESS_DENIED).
  */
 export function createReportTransport(options: { endpoint?: string; accessCode: () => string | null; fetch?: typeof fetch; timeoutMs?: number }): ReportTransport {
   const endpoint = options.endpoint ?? '/api/gemini-report';
   return async (input, signal) => {
     const code = options.accessCode();
-    if (!code) return { ok: false, error: { code: 'ACCESS_DENIED', message: 'Enter the demo access code to request an explanation.' } };
     const timeout = timeoutSignal(options.timeoutMs ?? 30_000);
     let response: Response;
     try {
       response = await (options.fetch ?? fetch)(endpoint, { method: 'POST', signal: anySignal([signal, timeout]), credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${code}` }, body: JSON.stringify({ input }) });
+        headers: reportHeaders(code), body: JSON.stringify({ input }) });
     } catch {
       if (signal.aborted) return { ok: false, error: { code: 'CANCELLED', message: 'Explanation request cancelled.' } };
       if (timeout.aborted) return { ok: false, error: { code: 'TIMEOUT', message: 'The explanation took too long. Local results are unaffected.' } };

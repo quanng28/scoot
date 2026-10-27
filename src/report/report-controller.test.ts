@@ -103,16 +103,24 @@ describe('ReportController (F4)', () => {
 });
 
 describe('createReportTransport', () => {
-  it('maps missing code, network failure, malformed and oversized bodies to typed errors', async () => {
+  it('maps network failure, malformed and oversized bodies to typed errors', async () => {
     const f = await fixture();
     const signal = new AbortController().signal;
-    expect(await createReportTransport({ accessCode: () => null })(f.input, signal)).toMatchObject({ ok: false, error: { code: 'ACCESS_DENIED' } });
     const net = createReportTransport({ accessCode: () => 'code-123', fetch: (async () => { throw new TypeError('offline'); }) as typeof fetch });
     expect(await net(f.input, signal)).toMatchObject({ ok: false, error: { code: 'NETWORK_ERROR' } });
     const garbled = createReportTransport({ accessCode: () => 'code-123', fetch: (async () => new Response('<html>')) as typeof fetch });
     expect(await garbled(f.input, signal)).toMatchObject({ ok: false, error: { code: 'MALFORMED_RESPONSE' } });
     const huge = createReportTransport({ accessCode: () => 'code-123', fetch: (async () => new Response('x'.repeat(40_000))) as typeof fetch });
     expect(await huge(f.input, signal)).toMatchObject({ ok: false, error: { code: 'MALFORMED_RESPONSE' } });
+  });
+
+  it('without a code sends no Authorization header and lets the server decide access', async () => {
+    const f = await fixture();
+    let sent: RequestInit | undefined;
+    const denied = createReportTransport({ accessCode: () => null, fetch: (async (_u: string | URL | Request, init?: RequestInit) => {
+      sent = init; return new Response(JSON.stringify({ ok: false, error: { code: 'ACCESS_DENIED', message: 'Demo access code required.' } }), { status: 401 }); }) as typeof fetch });
+    expect(await denied(f.input, new AbortController().signal)).toMatchObject({ ok: false, error: { code: 'ACCESS_DENIED' } });
+    expect(sent!.headers).toEqual({ 'Content-Type': 'application/json' });
   });
 
   it('sends only the report DTO with the runtime access code, and reports cancellation', async () => {

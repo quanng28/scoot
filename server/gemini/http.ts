@@ -74,14 +74,18 @@ export function clientKey(request: Request): string {
   return request.headers.get('x-forwarded-for')?.split(',').map((h) => h.trim()).filter(Boolean).at(-1) ?? 'unknown';
 }
 
-/** Exact-origin allowlist plus a runtime-entered access code compared by hash in constant time. */
-export function checkAccess(request: Request, config: GeminiConfig, guard?: AccessGuard): AccessResult {
+/**
+ * Exact-origin allowlist plus a runtime-entered access code compared by hash in constant time.
+ * `publicAccess` skips only the code; the origin allowlist and the caller's budgets still apply.
+ */
+export function checkAccess(request: Request, config: GeminiConfig, guard?: AccessGuard, publicAccess = false): AccessResult {
   const origin = request.headers.get('origin');
   if (!origin || !config.allowedOrigins.includes(origin)) return { ok: false, code: 'ORIGIN_DENIED' };
+  if (publicAccess) return { ok: true, origin };
   const client = clientKey(request);
   const match = new RegExp(`^Bearer ([\\x21-\\x7e]{${MIN_ACCESS_CODE_LENGTH},128})$`).exec(request.headers.get('authorization') ?? '');
   const supplied = createHash('sha256').update(match?.[1] ?? '', 'utf8').digest();
-  const expected = Buffer.from(config.accessCodeSha256, 'hex');
+  const expected = Buffer.from(config.accessCodeSha256 ?? '', 'hex');
   if (match && expected.length === supplied.length && timingSafeEqual(expected, supplied)) return { ok: true, origin };
   // Failed guesses cannot deny service to a caller who supplies the correct code.
   if (guard?.locked(client)) return { ok: false, code: 'RATE_LIMITED' };
