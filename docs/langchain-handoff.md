@@ -1,5 +1,30 @@
 # LangChain report pipeline handoff
 
+## Review update — October 27, 2026 (pre-merge review)
+
+Independent review of `codex/langchain-report-pipeline` before merging to main. Host Node 22.17.1 / npm 10.9.2 (within engines). No Gemini or LangSmith request was made; all checks are offline with fictional fixtures.
+
+**Documentation consulted (Context7):** Gemini API reference (`/websites/ai_google_dev_api`, generate-content: `GenerationConfig.responseFormat` → `ResponseFormatConfig.text` → `TextResponseFormat{mimeType: APPLICATION_JSON, schema}`; `responseSchema`/`_responseJsonSchema` deprecated), LangChain JS docs (`/websites/langchain_oss_javascript`: chat models retry up to 6 times by default via `maxRetries`), LangChain reference (`/websites/reference_langchain`: `withRetry` is opt-in on runnables), LangSmith SDK (`/langchain-ai/langsmith-sdk`: env-driven tracing, `hideInputs/hideOutputs`, AsyncLocalStorage run-tree context, batched upload). Installed: `@langchain/core` 1.3.0, `langsmith` 0.11.1, Zod 4.6.7.
+
+**Documentation vs. code:** no discrepancy requiring change. The REST body matches the current `responseFormat` shape. Production never instantiates a LangChain chat model, so the documented 6-retry default does not apply; only the offline fake uses one, with `maxRetries: 0`. `withRetry` is unused.
+
+**Confirmed defects fixed:**
+
+1. *Quick status fidelity (release blocker).* `validateVideoReport` accepted e.g. "Movements stayed **controlled**, with no fast-movement warnings." for a High-strain-risk input, and "controlled" headlines for Insufficient-data inputs. Now `video-report-validator.v3`: the headline must state the supplied status and may not use another status's wording; "no fast-movement warnings" is rejected in the headline when warnings were raised; "controlled" is rejected anywhere when data are insufficient. Hyphenated "well-controlled" is deliberately also rejected for non-controlled statuses (conservative; rejection only falls back to the local report).
+2. *Quick number attribution.* Any number present anywhere in the facts (or 0–10) was accepted in any position, e.g. "covered **2%**" for 29% coverage, or swapped warning/high-event counts. v3 checks unit-anchored numbers (%, fast-movement warnings, high strain risk, degrees per second, limb lengths per second, times, degrees) against the values of that same quantity; overall headline counts must equal the overall totals.
+3. *Targeted repair guidance.* New fixed `STATUS` diagnostic code/message (additive to the strict metrics enum, so stored provenance still parses).
+4. *Tracing-hygiene test was vacuous.* It asserted no `fetch` immediately, before LangSmith's asynchronous batch flush. A probe against the installed packages showed inherited `LANGSMITH_TRACING=true` attaches `langchain_tracer` to unguarded runnables and uploads after the batch delay, while the pipeline's disabled `RunTree` attaches none. The test now waits past the flush and includes a positive control.
+
+Validation was only tightened. Every deterministic template (all five status variants and all 26 evaluation fixtures) still validates. Quick reports are never persisted (the browser revalidates in memory), so no stored-report migration is needed; stored measured reports keep `report-validator.v3` and revalidate on reopen as before.
+
+**Verified unchanged and correct:** `SCOOT_LLM_PIPELINE` defaults to direct (exact `langchain` opts in); ≤2 provider calls; repair only after output-validation rejection; no repair on provider error/refusal/rate limit/timeout/cancel/missing key/validator exception; repair reserves hourly and lifetime budget; one shared 20000 ms deadline with abort checks before/after each call and after validation; digest binding and client revalidation; local report/capture/Save/Stop independent of the provider.
+
+**Results:** typecheck, lint, build, `git diff --check` pass; **749 Vitest tests in 57 files and 13 catalog checks pass**. `npm run eval:report` (fake): 156 outcomes, **184 calls** (cap 200, unconstrained 234) — 7 more than before because status-contradicting first outputs are now rejected and repaired. Per arm (78 units): direct first-pass/final valid 23.08% (18/78); langchain final valid 48.72% (38/78), recovery 58.82% (20/34); no status-contradiction caveat remains. These are mechanics only, not efficacy evidence. Live results, tokens, cost and clinical usefulness: **not yet run**.
+
+Independent review agent: approve, no blocking findings (one low note, addressed by decision 1 above).
+
+## Original handoff
+
 October 27, 2026. Work is local on `codex/langchain-report-pipeline`, based on `origin/main` at `88f3f54`. Nothing was pushed, merged, rebased, deployed or published. No Gemini or LangSmith request was made. The initial working tree was clean; only task changes are committed.
 
 The new server-only flag defaults to **direct**. `SCOOT_LLM_PIPELINE=langchain` enables generate → existing validation → at most one targeted repair → existing validation → deterministic fallback for both report branches. Local capture, measurement, video, replay, Save, Stop, tracking rejection and speech do not wait for it. Provider failure keeps the existing error envelope so the browser retains its already-visible local report. Invalid generated content is never returned as a successful repaired report.
@@ -7,7 +32,7 @@ The new server-only flag defaults to **direct**. `SCOOT_LLM_PIPELINE=langchain` 
 ## First three things in the morning
 
 1. Add `GEMINI_API_KEY` securely to the server/evaluation environment. Do not use a browser-prefixed variable, commit it, paste it into chat or include it in a command saved to history. Review the existing provider/data gate before any real context use.
-2. With Node 22.13+ within Node 22 and npm 10, run `npm ci`, `npm run check`, then `npm run eval:report`. This is offline by default. Review the accepted-output caveats, especially the existing quick-validator status gap.
+2. With Node 22.13+ within Node 22 and npm 10, run `npm ci`, `npm run check`, then `npm run eval:report`. This is offline by default. Review the accepted-output caveats; the quick status/number-attribution gap is closed by `video-report-validator.v3` (see the review update below).
 3. Run a small **synthetic** live evaluation only after deciding to do so: `npm run eval:report -- --live --yes --fixture measured-forward_reach --runs 1 --max-calls 3`. The script prints the unconstrained maximum/settings before checking approval/key guards. No live result is claimed here. Keep the application flag at direct until live acceptance and the separate validator review are complete.
 
 ## Exact commands
@@ -70,6 +95,6 @@ An independent review agent audited the full diff and passed 79 focused offline 
 
 Live Gemini model/account availability, supported response schema, one-repair efficacy, real latency/usage/cost, actual LangSmith export and clinician review are **not yet run**. No provider key or provider/tracing call was needed to verify mechanics. Fake timing is machine-local, not a latency prediction. Synthetic data cannot establish clinical validity.
 
-The existing quick validator checks numeric vocabulary, banned claims/formatting, hedging and event coverage, but can accept a headline that contradicts the input status or misattributes numbers. Measured validation enforces copy-only text but does not require complete observation coverage. The harness deliberately demonstrates and lists these accepted-output caveats; status contradictions are marked release blockers. This task does not alter validator acceptance. A separate tightening review is needed before promotion, and no claim of improved report correctness is made.
+Quick validation is now `video-report-validator.v3` (review update below): status contradictions and unit-misattributed numbers are rejected. It still cannot judge clinical usefulness, and a number without a recognised unit (e.g. a bare rep index) is only checked against the facts vocabulary. Measured validation enforces copy-only text but does not require complete observation coverage; its copied deterministic summary always states every count, so omission cannot contradict the facts, but a clinician may see fewer cited observations. The harness keeps its local detector and still marks any surviving status contradiction as a release blocker.
 
 The default 200-call cap can truncate a live run whose theoretical bound is 234 calls; the summary records budget failures, so incomplete runs cannot establish repair efficacy. Use a small fixture selection for the initial smoke, then plan a sufficient paired run within an explicitly chosen cap. Per-instance server quotas remain a backstop, not a global provider spend guarantee. Dependency/maintenance cost remains part of the reversal test.
