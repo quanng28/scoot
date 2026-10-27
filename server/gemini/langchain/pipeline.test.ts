@@ -1,4 +1,5 @@
 import { FakeListChatModel } from '@langchain/core/utils/testing';
+import { RunnableLambda } from '@langchain/core/runnables';
 import { describe, expect, it, vi } from 'vitest';
 import { emptyContext } from '../../../src/contracts/session-context.js';
 import { buildVideoReportInput } from '../../../src/contracts/video-report.js';
@@ -129,9 +130,15 @@ it('disables server tracing even when inherited LangSmith and legacy tracing fla
   try {
     const s = (await fixtures())[0]!;
     await runReportPipeline(s, options(fake([JSON.stringify(s.fallback())])));
+    // LangSmith uploads are batched asynchronously: wait past the flush before asserting silence.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     expect(network).not.toHaveBeenCalled();
+    // Positive control: the same inherited flags DO export an unguarded runnable, so the silence above is meaningful.
+    await RunnableLambda.from(async () => 1).invoke(1, { callbacks: [] });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(network).toHaveBeenCalled();
   } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
-});
+}, 10_000);
 
 for (const branch of ['measured', 'quick'] as const) describe(`${branch} review regressions`, () => {
   const spec = async () => (await fixtures()).find((s) => s.branch === branch)!;
