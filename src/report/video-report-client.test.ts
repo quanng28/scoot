@@ -35,7 +35,7 @@ it('rejects altered repaired content despite successful server provenance', asyn
   expect(result).toMatchObject({ ok: false, error: { code: 'REJECTED_CONTENT' } });
 });
 
-it('returns typed cancellation and preserves the no-access-code offline gate', async () => {
+it('returns typed cancellation and leaves code-less access to the server', async () => {
   const abort = new AbortController();
   const fetcher = vi.fn<typeof fetch>(async (_url, init) => new Promise<Response>((_resolve, reject) => {
     init?.signal?.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), { once: true });
@@ -43,7 +43,7 @@ it('returns typed cancellation and preserves the no-access-code offline gate', a
   const pending = request(fetcher, abort.signal);
   abort.abort();
   expect(await pending).toMatchObject({ ok: false, error: { code: 'CANCELLED' } });
-  fetcher.mockClear();
-  expect(await requestVideoReport(input, { accessCode: null, signal: new AbortController().signal, fetch: fetcher })).toMatchObject({ ok: false, error: { code: 'ACCESS_DENIED' } });
-  expect(fetcher).not.toHaveBeenCalled();
+  const denied = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ ok: false, error: { code: 'ACCESS_DENIED', message: 'Demo access code required.' } }), { status: 401 }));
+  expect(await requestVideoReport(input, { accessCode: null, signal: new AbortController().signal, fetch: denied })).toMatchObject({ ok: false, error: { code: 'ACCESS_DENIED' } });
+  expect(denied.mock.calls[0]![1]!.headers).toEqual({ 'Content-Type': 'application/json' });
 });

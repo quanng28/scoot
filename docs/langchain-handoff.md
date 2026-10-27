@@ -63,7 +63,7 @@ Artifacts are timestamped JSON and Markdown in ignored `eval-results/`. They ret
 
 New: `SCOOT_LLM_PIPELINE` (unset/empty/unrecognized → direct; explicit langchain opts in).
 
-Existing server configuration remains `GEMINI_PROVIDER_MODE`, `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_ACCESS_CODE_SHA256`, `GEMINI_ALLOWED_ORIGINS`, `GEMINI_REPORT_MAX_PER_HOUR`, `GEMINI_MAX_REQUESTS_PER_INSTANCE`. TTS settings are unchanged.
+Existing server configuration remains `GEMINI_PROVIDER_MODE`, `GEMINI_API_KEY`, `GEMINI_TEXT_MODEL`, `GEMINI_ACCESS_CODE_SHA256`, `GEMINI_ALLOWED_ORIGINS`, `GEMINI_PUBLIC_REPORTS` (default `false`; `true` drops the code for explanations only), `GEMINI_REPORT_MAX_PER_HOUR`, `GEMINI_MAX_REQUESTS_PER_INSTANCE`. TTS settings are unchanged.
 
 Evaluation-only optional tracing names: `LANGSMITH_API_KEY`, `LANGSMITH_TRACING`, `LANGSMITH_PROJECT`, `LANGSMITH_ENDPOINT`, `LANGSMITH_WORKSPACE_ID`, `LANGSMITH_HIDE_INPUTS`, `LANGSMITH_HIDE_OUTPUTS`. New .env.example entries are empty placeholders. Never enable tracing for server requests: the server creates a disabled asynchronous tracing context even when inherited LangSmith/legacy flags are true. The evaluation executable exports metadata-only traces only with explicit `--trace --yes`; it hides all inputs and outputs. Spans are exported retrospectively: their service-side duration is export time, while attached durationMs and the evaluation wallDurationMs tables contain measured execution latency.
 

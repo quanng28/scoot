@@ -21,8 +21,13 @@ const envSchema = z.object({
   GEMINI_TEXT_MODEL: z.enum(VERIFIED_TEXT_MODELS).default('gemini-3.8-flash'),
   GEMINI_TTS_MODEL: z.enum(VERIFIED_TTS_MODELS).default('gemini-3.8-flash-lite-tts'),
   GEMINI_TTS_VOICE: z.enum(VERIFIED_TTS_VOICES).default('Kore'),
-  /** SHA-256 hex of the demo access code testers type at runtime. Required in every mode except disabled. */
+  /** SHA-256 hex of the demo access code testers type at runtime. Required in every mode except disabled, unless reports are public. */
   GEMINI_ACCESS_CODE_SHA256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  /**
+   * 'true' lets any allowed-origin page request explanations without the access code (public demo).
+   * Cloud voice still needs the code. The project quota/budget becomes the only hard spending cap.
+   */
+  GEMINI_PUBLIC_REPORTS: z.enum(['true', 'false']).default('false'),
   /** Comma-separated exact origins allowed to call the endpoints, e.g. the Vercel preview origin. */
   GEMINI_ALLOWED_ORIGINS: z.string().optional(),
   GEMINI_REPORT_MAX_PER_HOUR: positiveInt(10, 1000),
@@ -33,7 +38,7 @@ const envSchema = z.object({
 
 export type GeminiConfig = {
   mode: 'mock' | 'live'; apiKey: string | null; textModel: string; ttsModel: string; ttsVoice: string;
-  accessCodeSha256: string; allowedOrigins: string[];
+  accessCodeSha256: string | null; allowedOrigins: string[]; publicReports: boolean;
   limits: { reportPerHour: number; ttsPerHour: number; maxPerInstance: number };
 };
 export type ConfigProblem = 'PROVIDER_DISABLED' | 'PROTECTION_UNCONFIGURED';
@@ -44,10 +49,11 @@ export function loadGeminiConfig(env: Record<string, string | undefined>): { ok:
   const e = parsed.data;
   if (e.GEMINI_PROVIDER_MODE === 'disabled') return { ok: false, problem: 'PROVIDER_DISABLED' };
   const origins = (e.GEMINI_ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
-  if (!e.GEMINI_ACCESS_CODE_SHA256 || !origins.length || origins.some((o) => !/^https?:\/\/[^/\s]+$/.test(o))) return { ok: false, problem: 'PROTECTION_UNCONFIGURED' };
+  const publicReports = e.GEMINI_PUBLIC_REPORTS === 'true';
+  if ((!e.GEMINI_ACCESS_CODE_SHA256 && !publicReports) || !origins.length || origins.some((o) => !/^https?:\/\/[^/\s]+$/.test(o))) return { ok: false, problem: 'PROTECTION_UNCONFIGURED' };
   const apiKey = e.GEMINI_API_KEY?.trim() || null;
   if (e.GEMINI_PROVIDER_MODE === 'live' && !apiKey) return { ok: false, problem: 'PROVIDER_DISABLED' };
   return { ok: true, config: { mode: e.GEMINI_PROVIDER_MODE, apiKey: e.GEMINI_PROVIDER_MODE === 'live' ? apiKey : null,
-    textModel: e.GEMINI_TEXT_MODEL, ttsModel: e.GEMINI_TTS_MODEL, ttsVoice: e.GEMINI_TTS_VOICE, accessCodeSha256: e.GEMINI_ACCESS_CODE_SHA256, allowedOrigins: origins,
+    textModel: e.GEMINI_TEXT_MODEL, ttsModel: e.GEMINI_TTS_MODEL, ttsVoice: e.GEMINI_TTS_VOICE, accessCodeSha256: e.GEMINI_ACCESS_CODE_SHA256 ?? null, allowedOrigins: origins, publicReports,
     limits: { reportPerHour: e.GEMINI_REPORT_MAX_PER_HOUR, ttsPerHour: e.GEMINI_TTS_MAX_PER_HOUR, maxPerInstance: e.GEMINI_MAX_REQUESTS_PER_INSTANCE } } };
 }

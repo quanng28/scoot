@@ -1,20 +1,20 @@
 import { REPORT_RESPONSE_BYTES } from '../contracts/provider-report.js';
 import { validateVideoReport, videoReportResponseSchema, VIDEO_REPORT_INPUT_VERSION, type VideoReportInput, type VideoReportResponse } from '../contracts/video-report.js';
 import { anySignal, timeoutSignal } from '../net/abort.js';
+import { reportHeaders } from './report-controller.js';
 import { canonicalDigest } from './report-input.js';
 
 /**
  * Client side of the video-only explanation. Mirrors createReportTransport: explicit request, bounded
  * response, binding checked against this exact input digest, and the copy-only validator re-applied in
- * the browser before anything generated is shown.
+ * the browser before anything generated is shown. Without a code the server decides access (public demo).
  */
 export async function requestVideoReport(input: VideoReportInput, options: { accessCode: string | null; signal: AbortSignal; endpoint?: string; fetch?: typeof fetch; timeoutMs?: number }): Promise<VideoReportResponse> {
-  if (!options.accessCode) return { ok: false, error: { code: 'ACCESS_DENIED', message: 'Enable Gemini and enter the demo access code in Settings to request an explanation.' } };
   const timeout = timeoutSignal(options.timeoutMs ?? 30_000);
   let response: Response;
   try {
     response = await (options.fetch ?? fetch)(options.endpoint ?? '/api/gemini-report', { method: 'POST', signal: anySignal([options.signal, timeout]), credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${options.accessCode}` }, body: JSON.stringify({ videoInput: input }) });
+      headers: reportHeaders(options.accessCode), body: JSON.stringify({ videoInput: input }) });
   } catch {
     if (options.signal.aborted) return { ok: false, error: { code: 'CANCELLED', message: 'Explanation request cancelled.' } };
     if (timeout.aborted) return { ok: false, error: { code: 'TIMEOUT', message: 'The explanation took too long. The local summary is unaffected.' } };
