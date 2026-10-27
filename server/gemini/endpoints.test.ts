@@ -54,6 +54,8 @@ describe('public reports (GEMINI_PUBLIC_REPORTS)', () => {
     const fetchMock = vi.fn();
     const report = createReportEndpoint({ env: { ...env, GEMINI_PUBLIC_REPORTS: 'true' }, fetch: fetchMock as typeof fetch });
     expect((await report(noCode('/api/gemini-report', { videoInput }))).status).toBe(200);
+    const measured = buildProviderReportInput(syntheticReachSession('public-session'), emptyContext()).input;
+    expect((await report(noCode('/api/gemini-report', { input: measured }))).status).toBe(200);
     expect(await errorCode(await report(noCode('/api/gemini-report', { videoInput }, 'https://evil.example')))).toBe('ORIGIN_DENIED');
     const tts = createTtsEndpoint({ config: config({ mode: 'mock', apiKey: null, accessCodeSha256: null, publicReports: true }), fetch: fetchMock as typeof fetch });
     const cue = { catalogVersion: CUE_CATALOG_VERSION, cueId: 'tracking.wrist' };
