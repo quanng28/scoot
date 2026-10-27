@@ -8,6 +8,8 @@ Start with the [project overview](../README.md), then use these references:
 | [Measurement guide](../tasks/seated-reach-measurement-guide.md) | Joint geometry, fixed calibration, time windows, quality gates, and repetition analysis |
 | [Exercise library](../tasks/seated-exercise-library.md) | Exercise-specific metrics, landmarks, and readiness conditions |
 | [Gemini integration](gemini-integration.md) | Grounded report schemas, approved speech, validation, and failure behavior |
+| [LangChain handoff](langchain-handoff.md) | Flag, bounded repair, exact commands, verification and known limitations |
+| [Report evaluation acceptance](report-eval/acceptance.md) | Preregistered synthetic evaluation metrics and reversal criteria |
 | [Current verification](verification.md) | Automated checks on the clean SCOOT snapshot and their limits |
 | [Historical integration evidence](integrated-application-verification.md) | Earlier integration checks; not current physical-device acceptance |
 | [Device verification pending](device-verification-pending.md) | Observations still required on actual devices |
