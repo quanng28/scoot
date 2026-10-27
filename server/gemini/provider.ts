@@ -10,9 +10,10 @@ import { GEMINI_API_BASE } from './config.js';
  */
 export type ProviderFailure = 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'REFUSED' | 'RATE_LIMITED' | 'MALFORMED_RESPONSE';
 export type Part = { text?: string | undefined; inlineData?: { mimeType?: string | undefined; data?: string | undefined } | undefined };
-export type ProviderResult = { ok: true; parts: Part[] } | { ok: false; code: ProviderFailure };
+export type ProviderResult = { ok: true; parts: Part[]; usage?: { input: number; output: number; total: number } } | { ok: false; code: ProviderFailure };
 
 const responseSchema = z.object({
+  usageMetadata: z.object({ promptTokenCount: z.number().int().nonnegative(), candidatesTokenCount: z.number().int().nonnegative(), totalTokenCount: z.number().int().nonnegative() }).optional().catch(undefined),
   candidates: z.array(z.object({
     content: z.object({ parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional(),
       inlineData: z.object({ mimeType: z.string().optional(), data: z.string().optional() }).optional() })).optional() }).optional(),
@@ -50,7 +51,8 @@ export async function generateContent(options: { model: string; apiKey: string; 
   if (finish === 'MAX_TOKENS') return fail('MALFORMED_RESPONSE');
   if (finish !== undefined && finish !== 'STOP' && finish !== 'FINISH_REASON_UNSPECIFIED') return fail('REFUSED');
   const parts = (candidate.content?.parts ?? []).filter((p) => !p.thought).map((p) => ({ text: p.text, inlineData: p.inlineData }));
-  return parts.length ? { ok: true, parts } : fail('MALFORMED_RESPONSE');
+  const u = parsed.data.usageMetadata;
+  return parts.length ? { ok: true, parts, ...(u ? { usage: { input: u.promptTokenCount, output: u.candidatesTokenCount, total: u.totalTokenCount } } : {}) } : fail('MALFORMED_RESPONSE');
 }
 
 async function readBoundedText(response: Response, limit: number, signal: AbortSignal): Promise<string> {
