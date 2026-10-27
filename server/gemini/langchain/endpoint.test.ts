@@ -80,3 +80,16 @@ it('retains context gates, missing-key behavior and size bounds before either at
   expect(reportResponseSchema.parse(await (await missing(post({ input: measured() }))).json())).toMatchObject({ ok: false, error: { code: 'PROVIDER_DISABLED' } });
   expect(fetcher).not.toHaveBeenCalled();
 });
+
+it.each(['direct', 'langchain'])('retains provider-reported usage for refusal and truncation in %s metrics', async (pipeline) => {
+  const input = measured(), metrics: PipelineMetrics[] = [];
+  const reasons = ['SAFETY', 'MAX_TOKENS'];
+  const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: reasons.shift() }],
+    usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 1, totalTokenCount: 5 } })));
+  const endpoint = createReportEndpoint({ config, fetch: fetcher, env: { SCOOT_LLM_PIPELINE: pipeline }, onMetrics: (m) => metrics.push(m) });
+  for (const expected of ['REFUSED', 'MALFORMED_RESPONSE']) {
+    expect(reportResponseSchema.parse(await (await endpoint(post({ input }))).json())).toMatchObject({ ok: false, error: { code: expected } });
+    expect(metrics.at(-1)?.usage?.total).toBe(5); expect(metrics.at(-1)?.attempts).toBe(1);
+  }
+  expect(fetcher).toHaveBeenCalledTimes(2);
+});

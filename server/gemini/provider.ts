@@ -10,7 +10,7 @@ import { GEMINI_API_BASE } from './config.js';
  */
 export type ProviderFailure = 'TIMEOUT' | 'CANCELLED' | 'PROVIDER_ERROR' | 'REFUSED' | 'RATE_LIMITED' | 'MALFORMED_RESPONSE';
 export type Part = { text?: string | undefined; inlineData?: { mimeType?: string | undefined; data?: string | undefined } | undefined };
-export type ProviderResult = { ok: true; parts: Part[]; usage?: { input: number; output: number; total: number } } | { ok: false; code: ProviderFailure };
+export type ProviderResult = { ok: true; parts: Part[]; usage?: { input: number; output: number; total: number } } | { ok: false; code: ProviderFailure; usage?: { input: number; output: number; total: number } };
 
 const responseSchema = z.object({
   usageMetadata: z.object({ promptTokenCount: z.number().int().nonnegative(), candidatesTokenCount: z.number().int().nonnegative(), totalTokenCount: z.number().int().nonnegative() }).optional().catch(undefined),
@@ -26,7 +26,7 @@ const BLOCK_CODES = /\b(safety|prohibited_content|blocklist|spii|recitation|jail
 export async function generateContent(options: { model: string; apiKey: string; body: unknown; signal: AbortSignal; timeoutMs: number; maxResponseBytes: number; fetch?: typeof fetch }): Promise<ProviderResult> {
   const timeout = timeoutSignal(options.timeoutMs);
   const signal = anySignal([options.signal, timeout]);
-  const fail = (code: ProviderFailure): ProviderResult => ({ ok: false, code: options.signal.aborted ? 'CANCELLED' : timeout.aborted ? 'TIMEOUT' : code });
+  const fail = (code: ProviderFailure, usage?: { input: number; output: number; total: number }): ProviderResult => ({ ok: false, code: options.signal.aborted ? 'CANCELLED' : timeout.aborted ? 'TIMEOUT' : code, ...(usage ? { usage } : {}) });
   let response: Response;
   if (signal.aborted) return fail('CANCELLED');
   try {
@@ -44,15 +44,16 @@ export async function generateContent(options: { model: string; apiKey: string; 
   try { json = JSON.parse(text); } catch { return fail('MALFORMED_RESPONSE'); }
   const parsed = responseSchema.safeParse(json);
   if (!parsed.success) return fail('MALFORMED_RESPONSE');
-  if (parsed.data.promptFeedback?.blockReason) return fail('REFUSED');
-  const candidate = parsed.data.candidates?.[0];
-  if (!candidate) return fail('REFUSED');
-  const finish = candidate.finishReason;
-  if (finish === 'MAX_TOKENS') return fail('MALFORMED_RESPONSE');
-  if (finish !== undefined && finish !== 'STOP' && finish !== 'FINISH_REASON_UNSPECIFIED') return fail('REFUSED');
-  const parts = (candidate.content?.parts ?? []).filter((p) => !p.thought).map((p) => ({ text: p.text, inlineData: p.inlineData }));
   const u = parsed.data.usageMetadata;
-  return parts.length ? { ok: true, parts, ...(u ? { usage: { input: u.promptTokenCount, output: u.candidatesTokenCount, total: u.totalTokenCount } } : {}) } : fail('MALFORMED_RESPONSE');
+  const usage = u ? { input: u.promptTokenCount, output: u.candidatesTokenCount, total: u.totalTokenCount } : undefined;
+  if (parsed.data.promptFeedback?.blockReason) return fail('REFUSED', usage);
+  const candidate = parsed.data.candidates?.[0];
+  if (!candidate) return fail('REFUSED', usage);
+  const finish = candidate.finishReason;
+  if (finish === 'MAX_TOKENS') return fail('MALFORMED_RESPONSE', usage);
+  if (finish !== undefined && finish !== 'STOP' && finish !== 'FINISH_REASON_UNSPECIFIED') return fail('REFUSED', usage);
+  const parts = (candidate.content?.parts ?? []).filter((p) => !p.thought).map((p) => ({ text: p.text, inlineData: p.inlineData }));
+  return parts.length ? { ok: true, parts, ...(usage ? { usage } : {}) } : fail('MALFORMED_RESPONSE', usage);
 }
 
 async function readBoundedText(response: Response, limit: number, signal: AbortSignal): Promise<string> {

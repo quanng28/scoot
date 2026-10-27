@@ -11,7 +11,6 @@ import { loadGeminiConfig, type GeminiConfig } from './config.js';
 import { AccessGuard, checkAccess, jsonReply, preflight, readBoundedJson, RequestFailure } from './http.js';
 import { InstanceBudget } from './limits.js';
 import { generateContent } from './provider.js';
-import { runReportPipeline } from './langchain/pipeline.js';
 import { measuredSpec, quickSpec } from './langchain/specs.js';
 import { restModelCall } from './langchain/model.js';
 import { directMetrics, emitPipelineMetrics } from './langchain/metrics.js';
@@ -97,7 +96,7 @@ export function createReportEndpoint(deps: ReportDeps = {}): (request: Request) 
         body: { system_instruction: { parts: [{ text: REPORT_SYSTEM_INSTRUCTION }] }, contents: [{ role: 'user', parts: [{ text: buildReportPrompt(input) }] }],
           generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: 'low' },
             responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: GEMINI_REPORT_JSON_SCHEMA } } } } });
-      if (!result.ok) { observe.finish(result.code); return fail(result.code, origin); }
+      if (!result.ok) { observe.finish(result.code, [], result.usage); return fail(result.code, origin); }
       observe.generated(result.usage);
       try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { observe.finish('MALFORMED_RESPONSE', ['JSON']); return fail('MALFORMED_RESPONSE', origin); }
     }
@@ -123,7 +122,7 @@ async function videoReport(input: VideoReportInput, config: GeminiConfig, signal
       body: { system_instruction: { parts: [{ text: VIDEO_REPORT_SYSTEM_INSTRUCTION }] }, contents: [{ role: 'user', parts: [{ text: buildVideoReportPrompt(input) }] }],
         generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: 'low' },
           responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema: GEMINI_CLINICIAN_REPORT_JSON_SCHEMA } } } } });
-    if (!result.ok) { observe.finish(result.code); return fail(result.code, origin); }
+    if (!result.ok) { observe.finish(result.code, [], result.usage); return fail(result.code, origin); }
     observe.generated(result.usage);
     try { raw = JSON.parse(result.parts.map((p) => p.text ?? '').join('')); } catch { observe.finish('MALFORMED_RESPONSE', ['JSON']); return fail('MALFORMED_RESPONSE', origin); }
   }
@@ -139,6 +138,7 @@ async function videoReport(input: VideoReportInput, config: GeminiConfig, signal
 
 /** Failure keeps the existing error envelope: the browser retains its already-visible local report. */
 async function chainedReport<T>(spec: ReportSpec<T>, config: GeminiConfig, signal: AbortSignal, origin: string | null, deps: ReportDeps, reserveRepair: () => FailureClass | null): Promise<Response> {
+  const { runReportPipeline } = await import('./langchain/pipeline.js');
   const result = await runReportPipeline(spec, { modelId: config.mode === 'mock' ? 'offline-template-mock' : config.textModel, signal,
     timeoutMs: deps.timeoutMs ?? REPORT_TIMEOUT_MS, reserveRepair,
     call: config.mode === 'mock' ? async () => ({ ok: true, text: JSON.stringify(spec.fallback()) }) : restModelCall(spec, config, deps.fetch),
@@ -153,7 +153,7 @@ async function chainedReport<T>(spec: ReportSpec<T>, config: GeminiConfig, signa
     case 'fallback_validation': return fail('REJECTED_CONTENT', origin, [...new Set(result.metrics.steps.flatMap((s) => s.codes))]);
     case 'fallback_provider_error': {
       const code = result.metrics.failureClass;
-      return fail(code === 'MISSING_KEY' ? 'PROVIDER_DISABLED' : code === 'VALIDATION' || code === null ? 'PROVIDER_ERROR' : code, origin);
+      return fail(code === 'MISSING_KEY' ? 'PROVIDER_DISABLED' : code === 'VALIDATION' || code === 'VALIDATOR_ERROR' || code === null ? 'PROVIDER_ERROR' : code, origin);
     }
   }
 }

@@ -4,7 +4,7 @@ import type { ValidationCode } from '../../../src/report/report-diagnostics.js';
 export type PipelineName = 'direct' | 'langchain';
 export type Branch = 'quick' | 'measured';
 export type FinalOutcome = 'accepted_first_pass' | 'accepted_after_repair' | 'fallback_validation' | 'fallback_provider_error' | 'cancelled';
-export type FailureClass = ReportErrorCode | 'MISSING_KEY' | 'VALIDATION';
+export type FailureClass = ReportErrorCode | 'MISSING_KEY' | 'VALIDATION' | 'VALIDATOR_ERROR';
 export type TokenUsage = { input: number; output: number; total: number };
 export type Step = { step: 'generate' | 'validate' | 'repair' | 'fallback'; outcome: 'pass' | 'reject' | 'error'; durationMs: number; attempt: 0 | 1 | 2;
   codes: ValidationCode[]; usage?: TokenUsage | undefined };
@@ -14,7 +14,7 @@ export type PipelineMetrics = {
   /** Omitted unless usage was reported for EVERY dispatched call. Never treat unknown as zero. */
   usage?: TokenUsage | undefined;
 };
-export type CallResult = { ok: true; text: string; usage?: TokenUsage | undefined } | { ok: false; code: FailureClass };
+export type CallResult = { ok: true; text: string; usage?: TokenUsage | undefined } | { ok: false; code: FailureClass; usage?: TokenUsage | undefined };
 export type ModelCall = (prompt: string, signal: AbortSignal) => Promise<CallResult>;
 export type ReportSpec<T> = {
   branch: Branch; exerciseId: ReportInput['exercise']['id']; promptVersion: string; validatorVersion: string; inputDigest: string; prompt: string; system: string;

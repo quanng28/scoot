@@ -21,6 +21,10 @@ export function summarizeRun(run: EvalRun): string {
     const rows = run.rows.filter((r) => r.pipeline === pipeline);
     lines.push(`| ${pipeline} | ${percentage(rows.filter(firstValid).length, rows.length)} | ${percentage(rows.filter(accepted).length, rows.length)} | ${percentage(rows.filter((r) => r.metrics.outcome === 'accepted_after_repair').length, rows.filter(firstRejected).length)} | ${percentage(rows.filter((r) => !accepted(r)).length, rows.length)} | ${rows.reduce((n, r) => n + r.calls, 0)} |`);
   }
+  lines.push('', 'Whole-arm p95 latency (ms): ' + (['direct', 'langchain'] as const).map((p) => `${p}=${percentile(run.rows.filter((r) => r.pipeline === p).map((r) => r.wallDurationMs), 0.95)?.toFixed(2) ?? 'not applicable'}`).join(', ') + '.');
+  const directP95 = percentile(run.rows.filter((r) => r.pipeline === 'direct').map((r) => r.wallDurationMs), 0.95);
+  const chainP95 = percentile(run.rows.filter((r) => r.pipeline === 'langchain').map((r) => r.wallDurationMs), 0.95);
+  if (directP95 !== null && chainP95 !== null) lines.push('', `Measured added whole-arm p95 latency: ${(chainP95 - directP95).toFixed(2)} ms (langchain minus direct; ${run.mode} mode).`);
   lines.push('', '## Failure classes', '', '| Pipeline | Class | Rate (all units) |', '| --- | --- | --- |');
   for (const pipeline of ['direct', 'langchain'] as const) {
     const rows = run.rows.filter((r) => r.pipeline === pipeline);
@@ -32,12 +36,12 @@ export function summarizeRun(run: EvalRun): string {
   for (const pipeline of ['direct', 'langchain'] as const) for (const count of [0, 1, 2]) {
     const rows = run.rows.filter((r) => r.pipeline === pipeline && r.calls === count);
     const usage = rows.flatMap((r) => r.metrics.usage ? [r.metrics.usage.total] : []);
-    lines.push(`| ${pipeline} | ${count} | ${rows.length} | ${quantiles(rows.map((r) => r.metrics.durationMs))} | ${!rows.length ? 'not applicable' : count === 0 ? 'not applicable' : usage.length === rows.length ? quantiles(usage) : 'not yet run (usage unavailable)'} |`);
+    lines.push(`| ${pipeline} | ${count} | ${rows.length} | ${quantiles(rows.map((r) => r.wallDurationMs))} | ${!rows.length ? 'not applicable' : count === 0 ? 'not applicable' : usage.length === rows.length ? quantiles(usage) : 'not yet run (usage unavailable)'} |`);
   }
   lines.push('', '## Per-fixture outcomes', '', '| Fixture | Pipeline | First-pass valid | Final valid | Fallback | Calls | p95 ms |', '| --- | --- | --- | --- | --- | --- | --- |');
   for (const id of [...new Set(run.rows.map((r) => r.fixtureId))]) for (const pipeline of ['direct', 'langchain'] as const) {
     const rows = run.rows.filter((r) => r.fixtureId === id && r.pipeline === pipeline);
-    lines.push(`| ${id} | ${pipeline} | ${percentage(rows.filter(firstValid).length, rows.length)} | ${percentage(rows.filter(accepted).length, rows.length)} | ${percentage(rows.filter((r) => !accepted(r)).length, rows.length)} | ${rows.reduce((n, r) => n + r.calls, 0)} | ${percentile(rows.map((r) => r.metrics.durationMs), 0.95)?.toFixed(2)} |`);
+    lines.push(`| ${id} | ${pipeline} | ${percentage(rows.filter(firstValid).length, rows.length)} | ${percentage(rows.filter(accepted).length, rows.length)} | ${percentage(rows.filter((r) => !accepted(r)).length, rows.length)} | ${rows.reduce((n, r) => n + r.calls, 0)} | ${percentile(rows.map((r) => r.wallDurationMs), 0.95)?.toFixed(2)} |`);
   }
   lines.push('', '## Accepted output that may still be wrong', '', 'Each item identifies an actual accepted unit and a concrete limitation detected locally. No report payload is retained. This detector is not exhaustive; human review is required.');
   const caveats = run.rows.filter((r) => r.caveats.length);

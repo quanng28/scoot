@@ -12,7 +12,7 @@ import { fakeFetch } from './fake.js';
 import type { EvalFixture } from './fixtures.js';
 
 export type EvalOptions = { runs: number; maxCalls: number; live: boolean; yes: boolean; trace: boolean; fixture: string | null };
-export type EvalRow = { fixtureId: string; repetition: number; pipeline: PipelineName; metrics: PipelineMetrics; calls: number; responseCode: string | null; caveats: string[] };
+export type EvalRow = { fixtureId: string; repetition: number; pipeline: PipelineName; metrics: PipelineMetrics; wallDurationMs: number; calls: number; responseCode: string | null; caveats: string[] };
 export type EvalRun = { mode: 'fake' | 'live'; date: string; modelId: string; runs: number; maxCalls: number; maximumPossibleCalls: number; calls: number;
   settings: { maxOutputTokens: number; thinkingLevel: string; timeoutMs: number; automaticProviderRetries: number }; rows: EvalRow[] };
 
@@ -93,6 +93,7 @@ export async function runEvaluation(fixtures: EvalFixture[], options: EvalOption
     const started = performance.now();
     const response = await endpoint(new Request(`${origin}/api/gemini-report`, { method: 'POST', headers: { Origin: origin, Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
     const raw: unknown = await response.json();
+    const wallDurationMs = performance.now() - started;
     const parsed = fixture.branch === 'measured' ? reportResponseSchema.parse(raw) : videoReportResponseSchema.parse(raw);
     const responseCode: ReportErrorCode | null = parsed.ok ? null : codeSchema.parse(parsed.error.code);
     // Preflight/initial-budget rejection does not enter either provider pipeline.
@@ -100,7 +101,7 @@ export async function runEvaluation(fixtures: EvalFixture[], options: EvalOption
       validatorVersion: spec.validatorVersion, modelId, inputDigest: spec.inputDigest, steps: [{ step: 'fallback', outcome: 'pass', durationMs: 0, attempt: 0, codes: [] }],
       attempts: 0, repaired: false, outcome: 'fallback_provider_error', failureClass: responseCode, durationMs: performance.now() - started };
     if (calls > (pipeline === 'direct' ? 1 : 2)) throw new Error('Pipeline exceeded provider call bound.');
-    run.rows.push({ fixtureId: fixture.id, repetition, pipeline, metrics: measured, calls, responseCode,
+    run.rows.push({ fixtureId: fixture.id, repetition, pipeline, metrics: measured, wallDurationMs, calls, responseCode,
       caveats: parsed.ok ? acceptedCaveats(fixture, parsed.report) : [] });
   }
   return run;

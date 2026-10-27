@@ -1,32 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { emptyContext } from '../contracts/session-context.js';
 import { reportInputSchema, type GeneratedReport } from '../contracts/provider-report.js';
-import { syntheticReachSession } from '../features/fixtures/synthetic-reach.js';
+import { record, withContext, plain, fact, goodReport } from './report-adversarial.test-fixtures.js';
 import { buildProviderReportInput, reportFacts } from './report-input.js';
 import { isRoundingOf, numbersIn, validateGeneratedReport } from './report-validator.js';
 import { syntheticContext } from './synthetic-context.js';
 import { templateReport } from './template-report.js';
 
-const record = () => syntheticReachSession('validator-session', new Date('2026-10-25T12:00:00Z'));
-const withContext = () => buildProviderReportInput(record(), syntheticContext(), { includeSyntheticContext: true }).input;
-const plain = () => buildProviderReportInput(record(), emptyContext()).input;
-const fact = (input: ReturnType<typeof plain>, id: string) => reportFacts(input).find((f) => f.id === id)!;
-
-/** Evidence-bound model output selects exact source facts; individual tests corrupt one part. */
-function goodReport(input = plain()): GeneratedReport {
-  const flag = reportFacts(input).find((f) => f.kind === 'flag')!;
-  return {
-    summary: templateReport(input, emptyContext()).report.summary,
-    observations: [
-      { factId: flag.id, text: flag.text },
-      { factId: 'attempt.3.exclusion', text: fact(input, 'attempt.3.exclusion').text },
-      { factId: 'attempt.3.elbowPeakDeg', text: fact(input, 'attempt.3.elbowPeakDeg').text },
-    ],
-    limitations: [{ factId: 'none', text: 'Values are 2D image-plane estimates from a single camera view.' }],
-    reportedContext: input.context.selfReport.map((s) => ({ contextId: s.contextId })),
-    chart: { type: 'per_attempt_metric', metric: 'torsoForwardPeakDeg', showThreshold: true },
-  };
-}
 const issues = (input: ReturnType<typeof plain>, report: GeneratedReport) => { const r = validateGeneratedReport(input, report); return r.ok ? [] : r.issues; };
 
 describe('number extraction', () => {

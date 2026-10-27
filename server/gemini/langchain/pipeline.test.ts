@@ -132,3 +132,37 @@ it('disables server tracing even when inherited LangSmith and legacy tracing fla
     expect(network).not.toHaveBeenCalled();
   } finally { vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
 });
+
+for (const branch of ['measured', 'quick'] as const) describe(`${branch} review regressions`, () => {
+  const spec = async () => (await fixtures()).find((s) => s.branch === branch)!;
+  it('checks cancellation after validation before accepting a late report', async () => {
+    const s = await spec(), abort = new AbortController();
+    const call = fake([JSON.stringify(s.fallback())]);
+    const r = await runReportPipeline({ ...s, validate: (raw) => { abort.abort(); return s.validate(raw); } }, { ...options(call), signal: abort.signal });
+    expect(r.metrics.outcome).toBe('cancelled'); expect(call).toHaveBeenCalledOnce();
+  });
+  it('checks elapsed deadline even when synchronous validation delays the timeout event', async () => {
+    const s = await spec(); let elapsed = 0;
+    const call = fake([JSON.stringify(s.fallback())]);
+    const r = await runReportPipeline({ ...s, validate: (raw) => { elapsed = 100; return s.validate(raw); } }, { ...options(call), timeoutMs: 50, now: () => elapsed });
+    expect(r.metrics.failureClass).toBe('TIMEOUT'); expect(call).toHaveBeenCalledOnce();
+  });
+  it('does not repair validator exceptions, and invokes deterministic fallback once', async () => {
+    const s = await spec(), local = vi.fn(s.fallback), call = fake([JSON.stringify(s.fallback())]);
+    const r = await runReportPipeline({ ...s, fallback: local, validate: () => { throw new Error('SECRET_VALIDATOR_PAYLOAD'); } }, options(call));
+    expect(r.metrics.failureClass).toBe('VALIDATOR_ERROR'); expect(r.metrics.outcome).toBe('fallback_provider_error');
+    expect(call).toHaveBeenCalledOnce(); expect(local).toHaveBeenCalledOnce(); expect(JSON.stringify(r)).not.toContain('SECRET_VALIDATOR_PAYLOAD');
+  });
+  it('retains reported token usage on failed calls without repairing them', async () => {
+    const call = vi.fn<ModelCall>(async () => ({ ok: false, code: 'REFUSED', usage: { input: 8, output: 1, total: 9 } }));
+    const r = await runReportPipeline(await spec(), options(call));
+    expect(r.metrics.usage).toEqual({ input: 8, output: 1, total: 9 }); expect(r.metrics.steps[0]?.usage?.total).toBe(9); expect(call).toHaveBeenCalledOnce();
+  });
+});
+
+it('keeps usage already returned by a provider when the whole-chain deadline expires', async () => {
+  const s = (await fixtures())[0]!; let elapsed = 0;
+  const call: ModelCall = async () => { elapsed = 100; return { ok: true, text: JSON.stringify(s.fallback()), usage: { input: 3, output: 2, total: 5 } }; };
+  const r = await runReportPipeline(s, { ...options(call), timeoutMs: 50, now: () => elapsed });
+  expect(r.metrics.failureClass).toBe('TIMEOUT'); expect(r.metrics.usage?.total).toBe(5);
+});

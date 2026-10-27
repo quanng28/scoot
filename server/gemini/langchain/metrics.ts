@@ -24,10 +24,11 @@ export function directMetrics(metadata: Pick<PipelineMetrics, 'branch' | 'exerci
       metrics.steps.push({ step: 'generate', outcome: 'pass', durationMs: validatedAt - started, attempt: metrics.attempts, codes: [], ...(usage ? { usage } : {}) });
       if (usage) metrics.usage = usage;
     },
-    finish(failure: PipelineMetrics['failureClass'] = null, codes: PipelineMetrics['steps'][number]['codes'] = []) {
+    finish(failure: PipelineMetrics['failureClass'] = null, codes: PipelineMetrics['steps'][number]['codes'] = [], usage?: PipelineMetrics['usage']) {
       const end = performance.now();
-      if (!generated) metrics.steps.push({ step: 'generate', outcome: 'error', durationMs: end - started, attempt: metrics.attempts, codes: [] });
-      else if (!validated) { validated = true; metrics.steps.push({ step: 'validate', outcome: failure ? 'reject' : 'pass', durationMs: end - validatedAt, attempt: metrics.attempts, codes }); }
+      if (!generated) metrics.steps.push({ step: 'generate', outcome: 'error', durationMs: end - started, attempt: metrics.attempts, codes: [], ...(usage ? { usage } : {}) });
+      if (usage) metrics.usage = usage;
+      if (generated && !validated) { validated = true; metrics.steps.push({ step: 'validate', outcome: failure ? 'reject' : 'pass', durationMs: end - validatedAt, attempt: metrics.attempts, codes }); }
       metrics.failureClass = failure;
       if (failure) {
         metrics.outcome = failure === 'CANCELLED' ? 'cancelled' : failure === 'VALIDATION' ? 'fallback_validation' : 'fallback_provider_error';

@@ -23,7 +23,7 @@ describe('payload-free diagnostic adapters', () => {
   });
   it('exposes only fixed codes and fixed repair guidance', () => {
     const result = validateMeasuredWithCodes(measured, { ...templateReport(measured, emptyContext()).report, summary: 'PRIVATE_SENTINEL 999' });
-    expect(result).toEqual({ ok: false, codes: ['SUMMARY'] });
+    expect(result).toEqual({ ok: false, codes: ['NUMBER', 'SUMMARY'] });
     expect(JSON.stringify({ result, messages: VALIDATION_MESSAGES })).not.toContain('PRIVATE_SENTINEL');
     expect(validateQuickWithCodes(quick, {})).toEqual({ ok: false, codes: ['SCHEMA'] });
   });

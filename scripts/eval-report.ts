@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Client } from 'langsmith';
+import { VERIFIED_TEXT_MODELS } from '../server/gemini/config.js';
 import { traceable } from 'langsmith/traceable';
 import { evalFixturesSchema } from './report-eval/fixtures.js';
 import { parseOptions, runEvaluation, type EvalRun } from './report-eval/harness.js';
@@ -14,11 +15,11 @@ async function traceSyntheticMetrics(run: EvalRun): Promise<void> {
     const emit = traceable(async () => {
       for (const step of row.metrics.steps) {
         await traceable(async () => ({}), { name: `report.${step.step}`, tracingEnabled: true, client,
-          metadata: { ...step }, processInputs: () => ({}), processOutputs: () => ({}) })();
+          metadata: { ...step, exportedRetrospectively: true }, processInputs: () => ({}), processOutputs: () => ({}) })();
       }
       return {};
     }, { name: 'scoot.synthetic-report-evaluation', tracingEnabled: true, client,
-      metadata: { pipeline: row.pipeline, branch: row.metrics.branch, outcome: row.metrics.outcome, attempts: row.metrics.attempts,
+      metadata: { exportedRetrospectively: true, pipeline: row.pipeline, branch: row.metrics.branch, outcome: row.metrics.outcome, attempts: row.metrics.attempts,
         modelId: row.metrics.modelId, promptVersion: row.metrics.promptVersion, validatorVersion: row.metrics.validatorVersion },
       processInputs: () => ({}), processOutputs: () => ({}) });
     await emit();
@@ -31,7 +32,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const raw: unknown = JSON.parse(await readFile(resolve('fixtures/report-eval/cases.json'), 'utf8'));
   const fixtures = evalFixturesSchema.parse(raw);
   const selected = options.fixture ? fixtures.filter((f) => f.id === options.fixture) : fixtures;
-  process.stdout.write(`${JSON.stringify({ mode: options.live ? 'live' : 'fake', fixtures: selected.length, repetitions: options.runs,
+  const modelId = VERIFIED_TEXT_MODELS.find((model) => model === (process.env.GEMINI_TEXT_MODEL ?? VERIFIED_TEXT_MODELS[0]));
+  if (!modelId) throw new Error('Unsupported evaluation model configuration.');
+  process.stdout.write(`${JSON.stringify({ modelId, mode: options.live ? 'live' : 'fake', fixtures: selected.length, repetitions: options.runs,
     maximumPossibleCalls: selected.length * options.runs * 3, hardMaxCalls: options.maxCalls,
     maxOutputTokens: 2048, thinkingLevel: 'low', timeoutMs: 20_000, automaticProviderRetries: 0,
     notice: 'Live mode requires --live, GEMINI_API_KEY and --yes; no cost estimate is invented.' })}\n`);

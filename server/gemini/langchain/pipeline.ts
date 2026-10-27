@@ -30,12 +30,12 @@ export async function runReportPipeline<T>(spec: ReportSpec<T>, options: {
 }): Promise<PipelineResult<T>> {
   return withRunTree(new RunTree({ name: 'scoot-report-no-runtime-tracing', tracingEnabled: false }), async () => {
     const now = options.now ?? (() => performance.now());
-    const started = now(), timeout = timeoutSignal(options.timeoutMs ?? 20_000), signal = anySignal([options.signal, timeout]);
+    const started = now(), timeoutMs = options.timeoutMs ?? 20_000, timeout = timeoutSignal(timeoutMs), signal = anySignal([options.signal, timeout]);
     const metrics: PipelineMetrics = { pipeline: options.pipeline ?? 'langchain', branch: spec.branch, exerciseId: spec.exerciseId,
       promptVersion: spec.promptVersion, validatorVersion: spec.validatorVersion, modelId: options.modelId, inputDigest: spec.inputDigest,
       steps: [], attempts: 0, repaired: false, outcome: 'fallback_provider_error', failureClass: null, durationMs: 0 };
     const usage: TokenUsage[] = [];
-    const abortCode = (): FailureClass | null => options.signal.aborted ? 'CANCELLED' : timeout.aborted ? 'TIMEOUT' : null;
+    const abortCode = (): FailureClass | null => options.signal.aborted ? 'CANCELLED' : timeout.aborted || now() - started >= timeoutMs ? 'TIMEOUT' : null;
     const step = async (name: Step['step'], attempt: Step['attempt'], action: () => Promise<Omit<Step, 'step' | 'attempt' | 'durationMs'>>): Promise<void> => {
       const start = now();
       // Catch inside the runnable so callback errors can never receive a provider exception/payload.
@@ -57,9 +57,11 @@ export async function runReportPipeline<T>(spec: ReportSpec<T>, options: {
     const fallback = async (code: FailureClass): Promise<PipelineResult<T>> => {
       metrics.failureClass = code;
       metrics.outcome = code === 'CANCELLED' ? 'cancelled' : code === 'VALIDATION' ? 'fallback_validation' : 'fallback_provider_error';
-      let report = spec.fallback();
-      await step('fallback', metrics.attempts, async () => { report = spec.fallback(); return { outcome: 'pass', codes: [] }; });
-      return finish(report);
+      let local: { report: T } | null = null;
+      await step('fallback', metrics.attempts, async () => { local = { report: spec.fallback() }; return { outcome: 'pass', codes: [] }; });
+      const result = read<{ report: T } | null>(local);
+      if (!result) throw new Error('Local report unavailable.');
+      return finish(result.report);
     };
     const preflight = abortCode() ?? spec.blocked;
     if (preflight) return fallback(preflight);
@@ -74,22 +76,26 @@ export async function runReportPipeline<T>(spec: ReportSpec<T>, options: {
         try { result = await abortable(options.call(prompt, signal), signal); }
         catch { result = { ok: false, code: abortCode() ?? 'PROVIDER_ERROR' }; }
         const abortedAfter = abortCode();
-        if (abortedAfter) result = { ok: false, code: abortedAfter };
-        if (!result.ok) return { outcome: 'error', codes: [] };
+        if (abortedAfter) result = { ok: false, code: abortedAfter, ...(result.usage ? { usage: result.usage } : {}) };
         if (result.usage) usage.push(result.usage);
+        if (!result.ok) return { outcome: 'error', codes: [], ...(result.usage ? { usage: result.usage } : {}) };
         return { outcome: 'pass', codes: [], ...(result.usage ? { usage: result.usage } : {}) };
       });
       // Keep model payload out of runnable return values and diagnostic events.
       const response = read<CallResult>(result);
       if (!response.ok) return response;
       previous = response.text;
+      let validatorFailed = false;
       let checked: ReturnType<typeof spec.validate> = { ok: false, codes: ['SCHEMA'] };
       await step('validate', number, async () => {
         let raw: unknown;
         try { raw = JSON.parse(previous); } catch { checked = { ok: false, codes: ['JSON'] }; return { outcome: 'reject', codes: ['JSON'] }; }
-        checked = spec.validate(raw);
+        try { checked = spec.validate(raw); } catch { validatorFailed = true; return { outcome: 'error', codes: [] }; }
         return checked.ok ? { outcome: 'pass', codes: [] } : { outcome: 'reject', codes: checked.codes };
       });
+      const lateAbort = abortCode();
+      if (lateAbort) return { ok: false, code: lateAbort };
+      if (validatorFailed) return { ok: false, code: 'VALIDATOR_ERROR' };
       const validation = read<ReturnType<typeof spec.validate>>(checked);
       if (validation.ok) return validation;
       codes = validation.codes;
