@@ -5,7 +5,7 @@ import { clock, OVERALL_LABEL, type ClinicianReport, type VideoReportInput } fro
  * DOM rendering of the clinician report for video-only recordings. Text is inserted with textContent only;
  * the one supported markup, **bold**, becomes <strong> elements (no innerHTML from generated text).
  */
-const STATUS_ICON = { controlled: '🟢', review: '🟠', high: '🔴' } as const;
+const STATUS_ICON = { controlled: '🟢', review: '🟠', high: '🔴', insufficient_data: '⚪' } as const;
 const SEVERITY = { high: { icon: '🔴', label: 'HIGH STRAIN RISK' }, moderate: { icon: '🟠', label: 'MODERATE STRAIN RISK' } } as const;
 const SVG = 'http://www.w3.org/2000/svg';
 

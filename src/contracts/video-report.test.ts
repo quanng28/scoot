@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PaceSummary } from '../analysis/pace-monitor.js';
-import { buildVideoReportInput, validateVideoReport, videoReportFacts, videoTemplateReport } from './video-report.js';
+import { buildVideoReportInput, buildVideoReportPrompt, validateVideoReport, videoReportFacts, videoReportInputSchema, videoTemplateReport } from './video-report.js';
 
 const pace: PaceSummary = {
   trackedSec: 17.25, angleMinDeg: 8.04, angleMaxDeg: 164.7, peakSpeedDegPerSec: 844.4, peakLimbLengthsPerSec: 6.123, fastWarnings: 2,
@@ -40,9 +40,32 @@ describe('video-only clinician report contract', () => {
     expect(issues({ headline: '<b>2</b> warnings' })).toContain('unsupported formatting');
   });
 
-  it('handles a take with no tracked pose as controlled-but-limited without inventing data', () => {
+  it('reports insufficient data for a take with no tracked pose without inventing data', () => {
     const empty = buildVideoReportInput({ exerciseId: 'seated_knee_extension', side: 'right', stopReason: 'CAPTURE_FAILED', recordingDurationMs: null, hasVideo: false, pace: null });
-    expect(empty).toMatchObject({ overall: 'controlled', capture: { recordingStatus: 'unavailable' }, events: [], reps: [] });
+    expect(empty).toMatchObject({ overall: 'insufficient_data', capture: { recordingStatus: 'unavailable' }, events: [], reps: [] });
+    expect(videoTemplateReport(empty).headline).toContain('**Insufficient data**');
+    expect(videoTemplateReport(empty).headline).not.toContain('controlled');
+    expect(buildVideoReportPrompt(empty)).toContain('Overall status: Insufficient data.');
+    expect(videoReportInputSchema.safeParse({ ...empty, overall: 'controlled' }).success).toBe(false);
     expect(validateVideoReport(empty, videoTemplateReport(empty)).ok).toBe(true);
+  });
+
+  it('reports insufficient data when coverage is unknown despite measured angles and high events', () => {
+    const unknown = buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'CAPTURE_FAILED', recordingDurationMs: null, hasVideo: false, pace });
+    expect(unknown.overall).toBe('insufficient_data');
+    expect(videoTemplateReport(unknown).headline).toContain('**Insufficient data**');
+    expect(validateVideoReport(unknown, videoTemplateReport(unknown)).ok).toBe(true);
+  });
+
+  it.each(['angleMinDeg', 'angleMaxDeg'] as const)('reports insufficient data when %s is missing despite known coverage', (bound) => {
+    const missing = buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'STOPPED', recordingDurationMs: 60_000, hasVideo: true, pace: { ...pace, [bound]: null } });
+    expect(missing.tracking.coverage).not.toBeNull();
+    expect(missing.overall).toBe('insufficient_data');
+  });
+
+  it('retains controlled status with measured angles, known adequate coverage and no warnings', () => {
+    const calm = buildVideoReportInput({ exerciseId: 'seated_forward_arm_raise', side: 'left', stopReason: 'STOPPED', recordingDurationMs: 60_000, hasVideo: true,
+      pace: { ...pace, trackedSec: 60, fastWarnings: 0, events: [] } });
+    expect(calm.overall).toBe('controlled');
   });
 });

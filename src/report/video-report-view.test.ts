@@ -31,4 +31,16 @@ describe('clinician report view', () => {
     expect(ui.charts.querySelectorAll('figure')).toHaveLength(2);
     expect(ui.points.querySelectorAll('li').length).toBeGreaterThan(0);
   });
+
+  it('shows insufficient data with a neutral icon when no angle was measured', () => {
+    const empty = buildVideoReportInput({ exerciseId: 'seated_knee_extension', side: 'right', stopReason: 'CAPTURE_FAILED', recordingDurationMs: null, hasVideo: false, pace: null });
+    const ids = ['root', 'bannerIcon', 'bannerStatus', 'headline', 'rom', 'speed', 'alerts', 'timeline', 'charts', 'tracking', 'points'] as const;
+    const ui = Object.fromEntries(ids.map((id) => [id, document.createElement('div')])) as unknown as Parameters<typeof renderClinicianReport>[0];
+    renderClinicianReport(ui, empty, videoTemplateReport(empty), [], vi.fn());
+    expect(ui.root.dataset.status).toBe('insufficient_data');
+    expect(ui.bannerStatus.textContent).toBe('Overall: Insufficient data');
+    expect(ui.bannerIcon.textContent).toBe('⚪');
+    expect(ui.headline.textContent).toContain('Insufficient data');
+    expect(ui.headline.textContent).not.toContain('controlled');
+  });
 });

@@ -22,9 +22,9 @@ const nonNegative = finite.nonnegative();
 const angle = finite.min(0).max(180);
 const speed = nonNegative.max(100_000);
 const sec = nonNegative.max(120);
-export const OVERALL_STATUSES = ['controlled', 'review', 'high'] as const;
+export const OVERALL_STATUSES = ['controlled', 'review', 'high', 'insufficient_data'] as const;
 export type OverallStatus = typeof OVERALL_STATUSES[number];
-export const OVERALL_LABEL: Record<OverallStatus, string> = { controlled: 'Controlled', review: 'Needs review', high: 'High strain risk' };
+export const OVERALL_LABEL: Record<OverallStatus, string> = { controlled: 'Controlled', review: 'Needs review', high: 'High strain risk', insufficient_data: 'Insufficient data' };
 /** Below this share of the recording tracked, the report is at least "Needs review". */
 export const MIN_TRACKING_COVERAGE = 0.6;
 
@@ -53,6 +53,7 @@ export type VideoReportInput = z.infer<typeof videoReportInputSchema>;
 export const videoReportRequestSchema = z.strictObject({ videoInput: videoReportInputSchema });
 
 function overallStatus(input: Pick<VideoReportInput, 'events' | 'tracking' | 'pace'>): OverallStatus {
+  if (input.pace.angleMinDeg === null || input.pace.angleMaxDeg === null || input.tracking.coverage === null) return 'insufficient_data';
   if (input.events.some((e) => e.severity === 'high')) return 'high';
   if (input.pace.fastWarnings > 0 || (input.tracking.coverage !== null && input.tracking.coverage < MIN_TRACKING_COVERAGE)) return 'review';
   return 'controlled';
@@ -132,9 +133,9 @@ export type ClinicianReport = z.infer<typeof clinicianReportSchema>;
 export const GEMINI_CLINICIAN_REPORT_JSON_SCHEMA = {
   type: 'object',
   properties: {
-    headline: { type: 'string', description: 'One sentence for the coloured status banner. Bold the key numbers with **.' },
+    headline: { type: 'string', description: 'One sentence for the coloured status banner, preserving the supplied overall status. When it is Insufficient data, state that angles or tracking coverage are unavailable; do not describe movement as controlled. Bold the key numbers with **.' },
     rangeOfMotion: { type: 'string', description: 'Two sentences at most about the observed angle range and repetitions.' },
-    speedAndControl: { type: 'string', description: 'Up to three sentences about peak speeds versus the limits and which reps stayed controlled.' },
+    speedAndControl: { type: 'string', description: 'Up to three sentences about measured peak speeds versus the limits and reps without warnings. Do not describe movement as controlled when the overall status is Insufficient data.' },
     riskAlerts: { type: 'array', description: 'Exactly one entry per listed event, in event order.', items: { type: 'object', properties: {
       event: { type: 'integer', description: 'Event number from the facts.' },
       text: { type: 'string', description: 'One or two sentences: the speed and multiple of the limit in bold, then the hedged strain risk in bold.' } }, required: ['event', 'text'] } },
@@ -149,6 +150,7 @@ export const VIDEO_REPORT_SYSTEM_INSTRUCTION = [
   'The data come from a single phone camera and 2D pose estimation, without measurement setup.',
   'Rules:',
   '- Use only the numbered FACTS. Every number you write must appear in the facts exactly as written. Do not compute new numbers.',
+  '- Preserve the supplied overall status. Insufficient data means an angle bound or tracking coverage is unavailable; state this limitation and do not describe movement as controlled.',
   '- Mark key numbers and risk phrases with **double asterisks** (bold). Use no other formatting, no headings, no lists, no emoji, no links.',
   '- Describe fast movements as a risk, never as a certainty: write "may increase the risk of muscle soreness or strain"; never say pain or injury will happen or has happened.',
   '- Do not diagnose, name medical conditions, predict recovery, prescribe exercises, doses or medication, or declare anything safe or unsafe.',
@@ -171,7 +173,8 @@ export function videoTemplateReport(input: VideoReportInput): ClinicianReport {
   const p = input.pace, t = input.tracking, label = PACE_ANGLE_LABEL[input.exercise.id];
   const high = input.events.filter((e) => e.severity === 'high');
   const lowCoverage = t.coverage !== null && t.coverage < MIN_TRACKING_COVERAGE;
-  const headline = (input.overall === 'controlled' ? 'Movements stayed **controlled**, with no fast-movement warnings.'
+  const headline = (input.overall === 'insufficient_data' ? '**Insufficient data**: angle measurements or tracking coverage are unavailable.'
+    : input.overall === 'controlled' ? 'Movements stayed **controlled**, with no fast-movement warnings.'
     : high.length ? `**${p.fastWarnings} fast-movement warnings**, including **${high.length} high strain risk** events. Replay review is recommended.`
     : p.fastWarnings ? `**${p.fastWarnings} fast-movement warnings** were raised. Replay review is recommended.`
     : 'No fast-movement warnings, but tracking was limited.') + (lowCoverage ? ` Tracking covered only **${pct(t.coverage!)}%** of the recording.` : '');
